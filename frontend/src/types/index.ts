@@ -57,6 +57,9 @@ export interface Cocktail {
   // 過敏原資訊
   allergens?: Allergen[];
 
+  // COTD (Cocktail of the Day) 資訊
+  cotd?: COTD;
+
   // 分類與標籤
   difficulty?: 'easy' | 'medium' | 'hard';
   tags?: string[];
@@ -116,6 +119,13 @@ export interface Allergen {
   item: string;
   allergen: string;
   allergen_url?: string;
+}
+
+// COTD (Cocktail of the Day)
+export interface COTD {
+  title?: string | null;
+  text?: string | null;
+  links?: any[];
 }
 
 // 對話類型

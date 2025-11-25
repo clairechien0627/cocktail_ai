@@ -204,7 +204,7 @@ def filter_cocktails():
         sort_by = request.args.get('sort_by', 'name')
 
         # 執行篩選
-        cocktails = Cocktail.filter_cocktails(db, filters, skip, limit, sort_by)
+        cocktails, total_count = Cocktail.filter_cocktails(db, filters, skip, limit, sort_by)
 
         # 轉換 ObjectId 為字串
         for cocktail in cocktails:
@@ -212,9 +212,10 @@ def filter_cocktails():
 
         return jsonify({
             'cocktails': cocktails,
-            'count': len(cocktails),
+            'count': total_count,
             'page': page,
-            'limit': limit
+            'limit': limit,
+            'total_pages': (total_count + limit - 1) // limit
         }), 200
 
     except Exception as e:

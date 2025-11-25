@@ -163,7 +163,7 @@ const CocktailsPage = () => {
           <Wine className="w-8 h-8 text-primary-600" />
           調酒瀏覽
         </h1>
-        <p className="text-gray-600">探索超過 4,000 種專業調酒配方</p>
+        <p className="text-gray-600">探索超過 6,000 種專業調酒配方</p>
       </div>
 
       {/* 搜尋和篩選 */}
@@ -403,10 +403,16 @@ const CocktailsPage = () => {
                       {cocktail.name}
                     </h3>
                   </div>
+                  {/* COTD 標記 */}
+                  {cocktail.cotd?.text && (
+                    <div className="flex-shrink-0">
+                      <Sparkles className="w-5 h-5 text-yellow-500 fill-yellow-400" />
+                    </div>
+                  )}
                 </div>
 
                 {/* 評分 */}
-                {cocktail.ratings?.professional && (
+                {cocktail.ratings?.professional != null && (
                   <div className="mb-2">
                     {renderStars(cocktail.ratings.professional)}
                     <span className="text-xs text-gray-500 ml-2">
@@ -565,12 +571,26 @@ const CocktailsPage = () => {
             )}
 
             <div className="p-6 space-y-6">
+              {/* COTD 徵章 */}
+              {selectedCocktail.cotd?.text && (
+                <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-400 rounded-lg p-4 shadow-md">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-5 h-5 text-yellow-600 fill-yellow-400" />
+                    <h4 className="font-bold text-yellow-900">
+                      {selectedCocktail.cotd.title || 'Cocktail of the Day'}
+                    </h4>
+                    <Sparkles className="w-5 h-5 text-yellow-600 fill-yellow-400" />
+                  </div>
+                  <p className="text-yellow-800 text-sm">{selectedCocktail.cotd.text}</p>
+                </div>
+              )}
+
               {/* 1. 評分與基本資訊 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   {selectedCocktail.ratings && (
                     <div className="space-y-2">
-                      {selectedCocktail.ratings.professional && (
+                      {selectedCocktail.ratings.professional != null && (
                         <div>
                           <p className="text-sm text-gray-600 mb-1">專業評分</p>
                           <div className="flex items-center gap-2">
@@ -581,7 +601,7 @@ const CocktailsPage = () => {
                           </div>
                         </div>
                       )}
-                      {selectedCocktail.ratings.public && (
+                      {selectedCocktail.ratings.public != null && (
                         <div>
                           <p className="text-sm text-gray-600 mb-1">公眾評分</p>
                           <div className="flex items-center gap-2">
@@ -704,19 +724,21 @@ const CocktailsPage = () => {
                           <span className="text-gray-900">{detail.ingredient}</span>
                         </li>
                       ))
-                    ) : (
+                    ) : selectedCocktail.ingredients && selectedCocktail.ingredients.length > 0 ? (
                       selectedCocktail.ingredients.map((ing, i) => (
                         <li key={i} className="text-gray-900">
                           {ing}
                         </li>
                       ))
+                    ) : (
+                      <li className="text-gray-500 italic">無材料資訊</li>
                     )}
                   </ul>
                 </div>
               </div>
 
               {/* 4. 製作方法 */}
-              {selectedCocktail.method && selectedCocktail.method.length > 0 && (
+              {selectedCocktail.method_sections && (
                 <div>
                   <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
                     <ChefHat className="w-5 h-5 text-purple-600" />
@@ -731,37 +753,33 @@ const CocktailsPage = () => {
                             <h4 className="font-semibold text-primary-600 mb-2">
                               {section.title}
                             </h4>
-                            <ol className="list-decimal list-inside space-y-1">
-                              {section.steps.map((step, j) => (
-                                <li key={j} className="text-gray-700">
-                                  {step}
-                                </li>
-                              ))}
-                            </ol>
+                            {section.steps && section.steps.length > 0 && (
+                              <ol className="list-decimal list-inside space-y-1">
+                                {section.steps.map((step, j) => (
+                                  <li key={j} className="text-gray-700">
+                                    {step}
+                                  </li>
+                                ))}
+                              </ol>
+                            )}
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <ol className="list-decimal list-inside space-y-2">
-                        {selectedCocktail.method.map((step, i) => (
-                          <li key={i} className="text-gray-700">
-                            {step}
-                          </li>
-                        ))}
-                      </ol>
+                      <p className="text-gray-500 italic">無製作步驟資訊</p>
                     )}
                   </div>
-                  {selectedCocktail.garnish && selectedCocktail.garnish.length > 0 && (
-                    <div className="mt-3 p-3 bg-green-50 rounded-lg">
-                      <p className="font-medium text-green-800 mb-1">裝飾</p>
-                      <p className="text-green-700">{selectedCocktail.garnish.join(', ')}</p>
-                    </div>
-                  )}
+
                 </div>
               )}
 
               {/* 5. 營養與酒精資訊 */}
-              {(selectedCocktail.nutrition || selectedCocktail.alcohol_metrics) && (
+              {(selectedCocktail.nutrition?.calories || selectedCocktail.alcohol_metrics && (
+                selectedCocktail.alcohol_metrics.abv != null ||
+                selectedCocktail.alcohol_metrics.standard_drinks != null ||
+                selectedCocktail.alcohol_metrics.proof != null ||
+                selectedCocktail.alcohol_metrics.pure_alcohol_grams != null
+               )) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {selectedCocktail.nutrition?.calories && (
                     <div className="bg-blue-50 rounded-lg p-4">
@@ -775,30 +793,35 @@ const CocktailsPage = () => {
                     </div>
                   )}
                   {selectedCocktail.alcohol_metrics && (
+                    selectedCocktail.alcohol_metrics.abv != null ||
+                    selectedCocktail.alcohol_metrics.standard_drinks != null ||
+                    selectedCocktail.alcohol_metrics.proof != null ||
+                    selectedCocktail.alcohol_metrics.pure_alcohol_grams != null
+                  ) && (
                     <div className="bg-orange-50 rounded-lg p-4">
                       <h4 className="font-semibold text-orange-800 mb-2">酒精指標</h4>
                       <div className="space-y-1 text-sm">
-                        {selectedCocktail.alcohol_metrics.abv !== undefined && (
+                        {selectedCocktail.alcohol_metrics.abv != null && (
                           <div className="flex justify-between">
                             <span className="text-orange-700">酒精濃度</span>
                             <span className="font-semibold text-orange-900">
-                              {selectedCocktail.alcohol_metrics.abv.toFixed(1)}%
+                              {selectedCocktail.alcohol_metrics.abv}%
                             </span>
                           </div>
                         )}
-                        {selectedCocktail.alcohol_metrics.standard_drinks !== undefined && (
+                        {selectedCocktail.alcohol_metrics.standard_drinks != null && (
                           <div className="flex justify-between">
                             <span className="text-orange-700">標準飲酒量</span>
                             <span className="font-semibold text-orange-900">
-                              {selectedCocktail.alcohol_metrics.standard_drinks.toFixed(1)}
+                              {selectedCocktail.alcohol_metrics.standard_drinks}
                             </span>
                           </div>
                         )}
-                        {selectedCocktail.alcohol_metrics.proof !== undefined && (
+                        {selectedCocktail.alcohol_metrics.proof != null && (
                           <div className="flex justify-between">
                             <span className="text-orange-700">酒精度數</span>
                             <span className="font-semibold text-orange-900">
-                              {selectedCocktail.alcohol_metrics.proof.toFixed(0)} proof
+                              {selectedCocktail.alcohol_metrics.proof} proof
                             </span>
                           </div>
                         )}

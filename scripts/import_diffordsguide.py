@@ -45,24 +45,6 @@ class DiffordsGuideImporter:
             'errors': []
         }
 
-    def extract_method_steps(self, method_sections):
-        """從 method_sections 提取「如何製作」步驟"""
-        if not method_sections:
-            return []
-        for section in method_sections:
-            if section.get('title') == 'How to make':
-                return section.get('steps', [])
-        return []
-
-    def extract_garnish(self, method_sections):
-        """從 method_sections 提取裝飾步驟"""
-        if not method_sections:
-            return []
-        for section in method_sections:
-            if section.get('title') == 'Garnish':
-                return section.get('steps', [])
-        return []
-
     def infer_category(self, data):
         """
         從調酒資料推斷分類
@@ -198,11 +180,6 @@ class DiffordsGuideImporter:
     def transform_cocktail(self, data):
         """轉換單一調酒資料以符合 schema"""
         transformed = data.copy()
-
-        # 提取製作步驟和裝飾
-        if data.get('method_sections'):
-            transformed['method'] = self.extract_method_steps(data['method_sections'])
-            transformed['garnish'] = self.extract_garnish(data['method_sections'])
 
         # 推斷分類、難度、標籤
         transformed['category'] = self.infer_category(data)

@@ -119,9 +119,14 @@ class Cocktail:
             'ingredients_detail': data.get('ingredients_detail', []),  # 詳細配方（含份量）
 
             # 製作方法
-            'method': data.get('method', []),  # 簡單步驟列表
-            'method_sections': data.get('method_sections', []),  # 結構化步驟（準備/製作/裝飾）
-            'garnish': data.get('garnish', []),
+            'method_sections': [
+                {
+                    "title": s.get("title"),
+                    "steps": [st for st in s.get("steps", []) if st and st.strip().lower() != "none"]
+                }
+                for s in data.get("method_sections", [])
+                if any(st and st.strip().lower() != "none" for st in s.get("steps", []))
+            ],
 
             # 評分系統
             'ratings': {
@@ -132,8 +137,12 @@ class Cocktail:
 
             # 風味檔案
             'taste_profile': {
-                'strength': data.get('strength_taste', {}).get('strength', {}).get('value'),
+                'strength': data.get('strength_taste', {}).get('strength', {}).get('value')
+                            if isinstance(data.get('strength_taste', {}).get('strength'), dict)
+                            else None,
                 'sweetness': data.get('strength_taste', {}).get('sweetness', {}).get('value')
+                             if isinstance(data.get('strength_taste', {}).get('sweetness'), dict)
+                             else None
             } if data.get('strength_taste') else None,
 
             # 營養資訊
@@ -165,6 +174,9 @@ class Cocktail:
 
             # 過敏原資訊
             'allergens': data.get('allergens', []),
+
+            # COTD (Cocktail of the Day) 資訊
+            'cotd': data.get('cotd'),
 
             # 分類與標籤
             'difficulty': data.get('difficulty', 'medium'),
@@ -291,11 +303,14 @@ class Cocktail:
         else:
             sort_params = [('name', 1)]  # 預設按名稱排序
 
+        # 計算符合條件的總數
+        total_count = db.cocktails.count_documents(query)
+
         cursor = db.cocktails.find(query).skip(skip).limit(limit)
         if sort_params:
             cursor = cursor.sort(sort_params)
 
-        return list(cursor)
+        return list(cursor), total_count
 
     @staticmethod
     def get_statistics(db):

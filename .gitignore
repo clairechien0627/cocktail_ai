@@ -19,8 +19,12 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# 資料庫相關
 data/
 import_IBA.py
+update_cocktails_data.py
+*.json
 
 # Virtual Environment
 venv/

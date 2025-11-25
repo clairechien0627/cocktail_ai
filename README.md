@@ -10,7 +10,7 @@
 ## ✨ 功能特色
 
 ### 🍹 調酒探索
-- **4,600+ 專業配方**：來自 Difford's Guide 的完整調酒資料庫
+- **6,000+ 專業配方**：來自 Difford's Guide 的完整調酒資料庫
 - **進階篩選系統**：根據評分、酒精強度、甜度、卡路里、難度等多維度篩選
 - **智能搜尋**：支援調酒名稱、材料、分類搜尋
 - **詳細資訊展示**：包含圖片、風味檔案、營養資訊、製作方法、歷史故事等
@@ -35,7 +35,7 @@
 
 ### 後端
 - **Flask 3.0** - Python Web 框架
-- **MongoDB** - NoSQL 資料庫 (4,600+ 調酒文檔)
+- **MongoDB** - NoSQL 資料庫 (6,000+ 調酒文檔)
 - **Groq API** - LLM 服務 (llama-3.3-70b-versatile)
 - **Flask-JWT-Extended** - JWT 認證
 - **TextBlob** - 情感分析
@@ -54,7 +54,7 @@
 - **Matplotlib & Seaborn** - 靜態圖表
 
 ### 資料來源
-- **Difford's Guide** - 4,600+ 專業調酒配方
+- **Difford's Guide** - 6,000+ 專業調酒配方
   - 專業評分 (0-5 星)
   - 公眾評價
   - 風味檔案 (酒精強度 0-10, 甜度 0-10)
@@ -76,7 +76,7 @@
 
 ```bash
 git clone <repository-url>
-cd 期末demo
+cd cocktail_ai
 ```
 
 ### 2. 後端設定
@@ -112,18 +112,29 @@ FLASK_DEBUG=True
 
 ### 3. 導入調酒資料
 
+確保你有 Difford's Guide 調酒資料（應該在 `data/diffordsguide/` 目錄下）
+
+> 若無，請先從 Google Drive 下載壓縮檔，並解壓縮後放置於指定目錄下：
+> https://drive.google.com/file/d/1BtOo_I3SJBxPb3CL7r3219cQ8Hs21wWi/view?usp=sharing
+
 ```bash
-# 導入 Difford's Guide 調酒資料 (4,600+ 筆)
+# 檢查資料目錄
+ls data/diffordsguide/  # Mac/Linux
+dir data\diffordsguide\  # Windows
+
+# 導入調酒資料到 MongoDB
 python scripts/import_diffordsguide.py
 ```
 
-預期輸出：
+你應該會看到：
+
 ```
-正在掃描目錄: data/diffordsguide
-找到 6659 個 JSON 檔案
-成功解析 4606 個調酒
-開始導入到 MongoDB...
-✓ 成功導入 4606 筆調酒資料
+總檔案數: 6659
+[OK] 成功匯入: 6659
+[SKIP] 略過（重複）: 0
+[FAIL] 失敗: 0
+
+資料庫調酒總數: 6659
 ```
 
 ### 4. 啟動後端服務
@@ -282,7 +293,7 @@ GET /api/cocktails/filter?
 
 ### AI 酒保對話
 
-- **專業知識**：基於 4,600+ 調酒資料庫
+- **專業知識**：基於 6,000+ 調酒資料庫
 - **個性化推薦**：考慮評分、難度、風味偏好
 - **情感識別**：TextBlob 情感分析
 - **對話記憶**：完整上下文理解
@@ -460,7 +471,7 @@ npm run build
 
 2. **MongoDB**：
    - 本地安裝或使用 MongoDB Atlas 免費層
-   - 資料庫大小約 500MB（4,600+ 調酒）
+   - 資料庫大小約 500MB（6,000+ 調酒）
 
 3. **責任飲酒**：
    - 本應用包含飲酒相關內容

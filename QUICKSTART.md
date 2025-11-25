@@ -115,7 +115,10 @@ FLASK_DEBUG=True
 
 ## 第五步：導入調酒資料
 
-確保你有 Difford's Guide 調酒資料（應該在 `data/diffordsguide/` 目錄下）：
+確保你有 Difford's Guide 調酒資料（應該在 `data/diffordsguide/` 目錄下）
+
+> 若無，請先從 Google Drive 下載壓縮檔，並進行解壓縮：
+> https://drive.google.com/file/d/1BtOo_I3SJBxPb3CL7r3219cQ8Hs21wWi/view?usp=sharing
 
 ```bash
 # 檢查資料目錄
@@ -129,15 +132,15 @@ python scripts/import_diffordsguide.py
 你應該會看到：
 
 ```
-正在掃描目錄: data/diffordsguide
-找到 6659 個 JSON 檔案
-成功解析 4606 個調酒
-開始導入到 MongoDB...
-✓ 成功導入 4606 筆調酒資料
-建立索引完成
+總檔案數: 6659
+[OK] 成功匯入: 6659
+[SKIP] 略過（重複）: 0
+[FAIL] 失敗: 0
+
+資料庫調酒總數: 6659
 ```
 
-> ⚠️ **注意**：如果沒有 `data/diffordsguide/` 資料夾，請聯繫專案維護者取得資料檔案。
+> ⚠️ **注意**：如果沒有 `data/diffordsguide/` 資料夾，請先取得資料檔案。
 
 ## 第六步：啟動後端服務
 
@@ -313,7 +316,7 @@ server: {
    ```bash
    mongosh
    use cocktail_db
-   db.cocktails.countDocuments()  # 應該顯示 4606
+   db.cocktails.countDocuments()  # 應該顯示 6659
    ```
 3. 如果沒有資料，重新執行導入腳本
 
@@ -368,6 +371,6 @@ jupyter notebook scripts/cocktail_analysis.ipynb
 
 **🎉 恭喜！你已成功設定 AI 調酒大師應用！**
 
-現在開始探索 4,600+ 種調酒，與 AI 酒保聊天吧！🍸
+現在開始探索 6659 種調酒，與 AI 酒保聊天吧！🍸
 
 **⚠️ 提醒：理性飲酒，過量有害健康。**
