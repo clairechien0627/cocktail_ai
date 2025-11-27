@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { chatAPI } from '../services/api';
-import { Send, Bot, User as UserIcon, AlertCircle, Menu, Plus, MessageCircle, X } from 'lucide-react';
+import { Send, Bot, User as UserIcon, AlertCircle, Menu, Plus, MessageCircle, X, Trash2 } from 'lucide-react';
 import type { Message, Conversation } from '../types';
+
 
 const ChatPage = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -13,10 +14,12 @@ const ChatPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+
   // 自動滾動到最新訊息
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
 
   // 載入所有對話
   const loadConversations = async () => {
@@ -28,6 +31,7 @@ const ChatPage = () => {
     }
   };
 
+
   // 選擇並載入特定對話
   const selectConversation = async (convId: string) => {
     try {
@@ -35,12 +39,14 @@ const ChatPage = () => {
       const response = await chatAPI.getConversation(convId);
       setConversationId(convId);
 
+
       // 轉換對話訊息格式
       const conversationMessages: Message[] = response.conversation.messages.map((msg) => ({
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
         sentiment: msg.sentiment,
       }));
+
 
       setMessages(conversationMessages);
       setError('');
@@ -51,6 +57,7 @@ const ChatPage = () => {
       setLoading(false);
     }
   };
+
 
   // 開始新對話
   const startNewConversation = () => {
@@ -65,9 +72,32 @@ const ChatPage = () => {
     setError('');
   };
 
+  // 🗑️ 刪除對話功能（新增）
+  const deleteConversation = async (convId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!window.confirm('確定要刪除這個對話嗎？')) {
+      return;
+    }
+    
+    try {
+      await chatAPI.deleteConversation(convId);
+      await loadConversations();
+      
+      if (convId === conversationId) {
+        startNewConversation();
+      }
+    } catch (error) {
+      console.error('刪除對話失敗:', error);
+      setError('刪除對話失敗');
+    }
+  };
+
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
 
   // 初始化：載入對話列表和歡迎訊息
   useEffect(() => {
@@ -75,14 +105,18 @@ const ChatPage = () => {
     startNewConversation();
   }, []);
 
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
+
     if (!inputMessage.trim() || loading) return;
+
 
     const userMessage = inputMessage.trim();
     setInputMessage('');
     setError('');
+
 
     // 加入用戶訊息到介面
     const newUserMessage: Message = {
@@ -92,14 +126,17 @@ const ChatPage = () => {
     setMessages((prev) => [...prev, newUserMessage]);
     setLoading(true);
 
+
     try {
       // 呼叫 API
       const response = await chatAPI.sendMessage(userMessage, conversationId || undefined);
+
 
       // 儲存 conversation ID
       if (!conversationId) {
         setConversationId(response.conversation_id);
       }
+
 
       // 加入 AI 回應
       const aiMessage: Message = {
@@ -109,10 +146,12 @@ const ChatPage = () => {
       };
       setMessages((prev) => [...prev, aiMessage]);
 
+
       // 重新載入對話列表以更新側邊欄
       loadConversations();
     } catch (err: any) {
       setError(err.response?.data?.error || '發送訊息失敗，請稍後再試');
+
 
       // 顯示錯誤訊息
       const errorMessage: Message = {
@@ -124,6 +163,7 @@ const ChatPage = () => {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="flex gap-4 h-[calc(100vh-8rem)]">
@@ -148,6 +188,7 @@ const ChatPage = () => {
             </button>
           </div>
 
+
           {/* 新對話按鈕 */}
           <div className="p-3 border-b border-gray-200">
             <button
@@ -159,6 +200,7 @@ const ChatPage = () => {
             </button>
           </div>
 
+
           {/* 對話列表 */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {conversations.length === 0 ? (
@@ -169,36 +211,51 @@ const ChatPage = () => {
                 const preview = lastMessage?.content.substring(0, 30) + '...' || '新對話';
                 const isActive = conv._id === conversationId;
 
+
                 return (
-                  <button
-                    key={conv._id}
-                    onClick={() => selectConversation(conv._id)}
-                    className={`w-full text-left p-3 rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-primary-100 border-2 border-primary-500'
-                        : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-500">
-                        #{conv._id.slice(-6)}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {new Date(conv.updated_at).toLocaleDateString('zh-TW', {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700 line-clamp-2">{preview}</p>
-                    <p className="text-xs text-gray-500 mt-1">{conv.messages.length} 則訊息</p>
-                  </button>
+                  <div key={conv._id} className="relative group">
+                    <button
+                      onClick={() => selectConversation(conv._id)}
+                      className={`w-full text-left p-3 rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-primary-100 border-2 border-primary-500'
+                          : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-1">
+                        <span className="text-xs font-medium text-gray-500">
+                          #{conv._id.slice(-6)}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(conv.updated_at).toLocaleDateString('zh-TW', {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 line-clamp-2">{preview}</p>
+                      <p className="text-xs text-gray-500 mt-1">{conv.messages.length} 則訊息</p>
+                    </button>
+
+                    {/* 🗑️ 刪除按鈕（新增）*/}
+                    <button
+                      onClick={(e) => deleteConversation(conv._id, e)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 
+                                 opacity-0 group-hover:opacity-100 
+                                 transition-opacity duration-200
+                                 p-2 hover:bg-red-100 rounded-lg"
+                      title="刪除對話"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700" />
+                    </button>
+                  </div>
                 );
               })
             )}
           </div>
         </div>
       </div>
+
 
       {/* 主聊天區域 */}
       <div className="flex-1 bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
@@ -220,6 +277,7 @@ const ChatPage = () => {
             </div>
           </div>
         </div>
+
 
         {/* 訊息區域 */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
@@ -243,6 +301,7 @@ const ChatPage = () => {
                 )}
               </div>
 
+
               {/* 訊息氣泡 */}
               <div
                 className={`max-w-[70%] rounded-lg px-4 py-3 ${
@@ -252,6 +311,7 @@ const ChatPage = () => {
                 }`}
               >
                 <p className="whitespace-pre-wrap">{message.content}</p>
+
 
                 {/* 情感分數（僅顯示用戶訊息） */}
                 {message.role === 'user' && message.sentiment !== undefined && (
@@ -267,6 +327,7 @@ const ChatPage = () => {
               </div>
             </div>
           ))}
+
 
           {/* 載入中指示 */}
           {loading && (
@@ -290,8 +351,10 @@ const ChatPage = () => {
             </div>
           )}
 
+
           <div ref={messagesEndRef} />
         </div>
+
 
         {/* 錯誤提示 */}
         {error && (
@@ -302,6 +365,7 @@ const ChatPage = () => {
             </div>
           </div>
         )}
+
 
         {/* 輸入區域 */}
         <form onSubmit={handleSendMessage} className="border-t border-gray-200 p-4 bg-white">
@@ -324,6 +388,7 @@ const ChatPage = () => {
             </button>
           </div>
 
+
           <p className="text-xs text-gray-500 mt-2">
             💡 提示：可以問我關於調酒的任何問題，或告訴我您的喜好讓我推薦
           </p>
@@ -332,5 +397,6 @@ const ChatPage = () => {
     </div>
   );
 };
+
 
 export default ChatPage;
