@@ -181,6 +181,7 @@ class Cocktail:
             # 分類與標籤
             'difficulty': data.get('difficulty', 'medium'),
             'tags': data.get('tags', []),
+            'more_categories': data.get('more_categories', []),
 
             # 元數據
             'scraped_at': data.get('scraped_at'),
@@ -237,6 +238,7 @@ class Cocktail:
                 - max_calories: 最大卡路里
                 - difficulty: 難度（'easy', 'medium', 'hard'）
                 - category: 分類
+                - more_category: More Categories 分類
                 - has_history: 是否有歷史故事
             sort_by: 排序方式 ('rating_desc', 'rating_asc', 'strength_desc', 'calories_asc' 等)
         """
@@ -279,6 +281,10 @@ class Cocktail:
         # 分類篩選
         if 'category' in filters:
             query['category'] = filters['category']
+
+        # More Categories 篩選
+        if 'more_category' in filters:
+            query['more_categories'] = filters['more_category']
 
         # 歷史故事篩選
         if filters.get('has_history'):

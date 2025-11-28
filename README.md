@@ -97,7 +97,7 @@ cp .env.example .env
 ```env
 # MongoDB 設定
 MONGODB_URI=mongodb://localhost:27017/
-MONGODB_DB=cocktail_db
+MONGODB_DB=cocktail_ai
 
 # Groq API 設定
 GROQ_API_KEY=gsk_your_groq_api_key_here

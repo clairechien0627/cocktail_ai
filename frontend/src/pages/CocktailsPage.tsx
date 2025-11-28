@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { cocktailAPI } from '../services/api';
+import { CategoryBadge } from '../utils/categoryIcons';
 import {
   Search,
   Wine,
@@ -28,6 +29,8 @@ const CocktailsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [categories, setCategories] = useState<string[]>([]);
+  const [moreCategories, setMoreCategories] = useState<string[]>([]);
+  const [selectedMoreCategory, setSelectedMoreCategory] = useState<string>('all');
   const [selectedCocktail, setSelectedCocktail] = useState<Cocktail | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -46,7 +49,7 @@ const CocktailsPage = () => {
     sortBy: 'name' as 'name' | 'rating_desc' | 'rating_asc' | 'strength_desc' | 'calories_asc' | 'popular',
   });
 
-  // 載入分類
+  // 載入分類和 More Categories
   useEffect(() => {
     const loadCategories = async () => {
       try {
@@ -56,7 +59,18 @@ const CocktailsPage = () => {
         console.error('載入分類失敗:', error);
       }
     };
+
+    const loadMoreCategories = async () => {
+      try {
+        const response = await cocktailAPI.getMoreCategories();
+        setMoreCategories(response.more_categories.filter((c) => c));
+      } catch (error) {
+        console.error('載入 More Categories 失敗:', error);
+      }
+    };
+
     loadCategories();
+    loadMoreCategories();
   }, []);
 
   // 載入調酒
@@ -79,6 +93,9 @@ const CocktailsPage = () => {
 
           if (selectedCategory !== 'all') {
             params.append('category', selectedCategory);
+          }
+          if (selectedMoreCategory !== 'all') {
+            params.append('more_category', selectedMoreCategory);
           }
           if (filters.minRating > 0) {
             params.append('min_rating', filters.minRating.toString());
@@ -127,7 +144,7 @@ const CocktailsPage = () => {
     };
 
     loadCocktails();
-  }, [searchQuery, selectedCategory, page, filters]);
+  }, [searchQuery, selectedCategory, selectedMoreCategory, page, filters]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -322,6 +339,26 @@ const CocktailsPage = () => {
                   <option value="easy">簡單</option>
                   <option value="medium">中等</option>
                   <option value="hard">困難</option>
+                </select>
+              </div>
+
+              {/* More Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">More Category</label>
+                <select
+                  value={selectedMoreCategory}
+                  onChange={(e) => {
+                    setSelectedMoreCategory(e.target.value);
+                    setPage(1);
+                  }}
+                  className="input-field"
+                >
+                  <option value="all">全部</option>
+                  {moreCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -922,6 +959,18 @@ const CocktailsPage = () => {
                         </li>
                       ))}
                     </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* More Categories */}
+              {selectedCocktail.more_categories && selectedCocktail.more_categories.length > 0 && (
+                <div className="pt-4 border-t border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">More Categories</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedCocktail.more_categories.map((category) => (
+                      <CategoryBadge key={category} categoryName={category} />
+                    ))}
                   </div>
                 </div>
               )}

@@ -24,6 +24,8 @@ wheels/
 data/
 import_IBA.py
 update_cocktails_data.py
+merge_categories.py
+export_visualizations.py
 *.json
 
 # Virtual Environment

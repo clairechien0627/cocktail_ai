@@ -121,6 +121,29 @@ def get_categories():
         return jsonify({'error': str(e)}), 500
 
 
+@cocktails_bp.route('/more-categories', methods=['GET'])
+def get_more_categories():
+    """取得所有 more_categories"""
+    try:
+        from flask import current_app
+        db = current_app.config['DB']
+
+        # 取得所有不重複的 more_categories（攤平陣列）
+        pipeline = [
+            {'$unwind': '$more_categories'},
+            {'$group': {'_id': '$more_categories'}},
+            {'$sort': {'_id': 1}}
+        ]
+
+        result = list(db.cocktails.aggregate(pipeline))
+        more_categories = [item['_id'] for item in result if item.get('_id')]
+
+        return jsonify({'more_categories': more_categories}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @cocktails_bp.route('/random', methods=['GET'])
 def get_random_cocktail():
     """隨機取得一個調酒"""
@@ -157,6 +180,7 @@ def filter_cocktails():
     - max_calories: 最大卡路里
     - difficulty: 難度 (easy/medium/hard)
     - category: 分類
+    - more_category: More Categories 分類
     - has_history: 是否有歷史故事 (true/false)
     - sort_by: 排序方式 (rating_desc, strength_desc, calories_asc, popular 等)
     - page: 頁碼 (預設 1)
@@ -192,6 +216,8 @@ def filter_cocktails():
             filters['difficulty'] = request.args.get('difficulty')
         if request.args.get('category'):
             filters['category'] = request.args.get('category')
+        if request.args.get('more_category'):
+            filters['more_category'] = request.args.get('more_category')
         if request.args.get('has_history') == 'true':
             filters['has_history'] = True
 

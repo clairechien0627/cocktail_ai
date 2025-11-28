@@ -95,7 +95,7 @@ MONGODB_URI=mongodb://localhost:27017/
 # 或 MongoDB Atlas：
 # MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/
 
-MONGODB_DB=cocktail_db
+MONGODB_DB=cocktail_ai
 
 # Groq API 設定（填入你的 API Key）
 GROQ_API_KEY=gsk_your_groq_api_key_here
@@ -315,7 +315,7 @@ server: {
 2. 檢查 MongoDB 中是否有資料：
    ```bash
    mongosh
-   use cocktail_db
+   use cocktail_ai
    db.cocktails.countDocuments()  # 應該顯示 6659
    ```
 3. 如果沒有資料，重新執行導入腳本

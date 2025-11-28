@@ -169,6 +169,12 @@ export const cocktailAPI = {
     return response.data;
   },
 
+  // 取得所有 More Categories
+  getMoreCategories: async (): Promise<{ more_categories: string[] }> => {
+    const response = await api.get<{ more_categories: string[] }>('/api/cocktails/more-categories');
+    return response.data;
+  },
+
   // 隨機取得一個調酒
   getRandom: async (): Promise<{ cocktail: Cocktail }> => {
     const response = await api.get<{ cocktail: Cocktail }>('/api/cocktails/random');

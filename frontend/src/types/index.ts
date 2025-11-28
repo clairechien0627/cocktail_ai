@@ -63,6 +63,7 @@ export interface Cocktail {
   // 分類與標籤
   difficulty?: 'easy' | 'medium' | 'hard';
   tags?: string[];
+  more_categories?: string[];  // Difford's Guide 更多分類
 
   // 元數據
   scraped_at?: string;
