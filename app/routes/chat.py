@@ -3,11 +3,13 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Conversation, User
 from app.services.llm_service import llm_service
 from app.services.sentiment import analyze_sentiment, should_warn_about_drinking
+from langsmith import traceable
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/api/chat')
 
 
 # ============== 新增的函數：查詢資料庫 ==============
+@traceable(name="query_cocktails_from_db")
 def query_cocktails_from_db(db, user_message, limit=3):
     """改進版：更智慧的查詢"""
     try:
@@ -100,6 +102,76 @@ def query_cocktails_from_db(db, user_message, limit=3):
 
 
 # ====================================================
+
+
+@traceable(name="process_chat_message",
+          run_type="chain",
+          metadata={"service": "cocktail_ai", "version": "1.0"})
+def process_chat_message(db, user_id, user_message, conversation_id, user_preferences):
+    """
+    處理對話訊息的核心邏輯（帶 LangSmith 追蹤）
+
+    Args:
+        db: MongoDB 資料庫實例
+        user_id: 用戶 ID
+        user_message: 用戶訊息
+        conversation_id: 對話 ID
+        user_preferences: 用戶偏好設定
+
+    Returns:
+        dict: 包含 AI 回應、情感分數和警告狀態
+    """
+    from flask import current_app
+
+    # 1. 情感分析
+    sentiment_score = analyze_sentiment(user_message)
+    current_app.logger.info(f"情感分析結果: {sentiment_score}")
+
+    # 2. 儲存用戶訊息
+    Conversation.add_message(db, conversation_id, 'user', user_message, sentiment_score)
+
+    # 3. 取得對話歷史
+    conversation_history = Conversation.get_recent_messages(db, conversation_id)
+    formatted_history = [
+        {'role': msg['role'], 'content': msg['content']}
+        for msg in conversation_history[:-1]  # 排除剛剛加入的訊息
+    ]
+
+    # 4. 查詢資料庫獲取推薦調酒
+    cocktails = query_cocktails_from_db(db, user_message, limit=3)
+
+    if cocktails:
+        cocktail_info = "\n\n可推薦的調酒：\n"
+        for i, c in enumerate(cocktails, 1):
+            cocktail_info += f"{i}. {c['name']} (評分: {c.get('rating', 'N/A')}/5)\n"
+        user_preferences['available_cocktails'] = cocktail_info
+        current_app.logger.info(f"找到 {len(cocktails)} 個推薦調酒")
+
+    # 5. 取得 AI 酒保回應
+    ai_response = llm_service.get_bartender_response(
+        user_message,
+        formatted_history,
+        user_preferences
+    )
+
+    # 6. 檢查是否需要責任飲酒警告
+    needs_warning = should_warn_about_drinking(user_message, sentiment_score)
+
+    if needs_warning and '責任飲酒' not in ai_response:
+        ai_response += "\n\n💡 小提醒：請記得理性飲酒，過量飲酒有害健康。如果您要開車或有其他不適合飲酒的情況，我也可以推薦美味的無酒精飲料喔！"
+
+    # 7. 儲存 AI 回應
+    Conversation.add_message(db, conversation_id, 'assistant', ai_response)
+
+    # 返回結果（包含追蹤元數據）
+    return {
+        'ai_response': ai_response,
+        'sentiment_score': sentiment_score,
+        'needs_warning': needs_warning,
+        'recommended_cocktails_count': len(cocktails) if cocktails else 0,
+        'conversation_length': len(formatted_history) + 2,
+        'user_id': str(user_id)
+    }
 
 
 @chat_bp.route('/conversations', methods=['POST'])
@@ -197,55 +269,25 @@ def send_message():
             conversation = Conversation.find_by_id(db, conversation_id)
             if not conversation:
                 return jsonify({'error': '對話不存在'}), 404
-        
-        # 情感分析
-        sentiment_score = analyze_sentiment(user_message)
-        
-        # 儲存用戶訊息
-        Conversation.add_message(db, conversation_id, 'user', user_message, sentiment_score)
-        
+
         # 取得用戶偏好
         user = User.find_by_id(db, user_id)
         user_preferences = user.get('preferences', {}) if user else {}
-        
-        # 取得對話歷史
-        conversation_history = Conversation.get_recent_messages(db, conversation_id)
-        formatted_history = [
-            {'role': msg['role'], 'content': msg['content']}
-            for msg in conversation_history[:-1]  # 排除剛剛加入的訊息
-        ]
-        
-        # ============== 新增：查詢資料庫 ==============
-        cocktails = query_cocktails_from_db(db, user_message, limit=3)
-        
-        if cocktails:
-            cocktail_info = "\n\n可推薦的調酒：\n"
-            for i, c in enumerate(cocktails, 1):
-                cocktail_info += f"{i}. {c['name']} (評分: {c.get('rating', 'N/A')}/5)\n"
-            user_preferences['available_cocktails'] = cocktail_info
-        # ============================================
-        
-        # 取得 AI 酒保回應
-        ai_response = llm_service.get_bartender_response(
-            user_message,
-            formatted_history,
-            user_preferences
+
+        # 使用 LangSmith 追蹤的對話處理函數
+        result = process_chat_message(
+            db=db,
+            user_id=user_id,
+            user_message=user_message,
+            conversation_id=conversation_id,
+            user_preferences=user_preferences
         )
-        
-        # 檢查是否需要責任飲酒警告
-        needs_warning = should_warn_about_drinking(user_message, sentiment_score)
-        
-        if needs_warning and '責任飲酒' not in ai_response:
-            ai_response += "\n\n💡 小提醒：請記得理性飲酒，過量飲酒有害健康。如果您要開車或有其他不適合飲酒的情況，我也可以推薦美味的無酒精飲料喔！"
-        
-        # 儲存 AI 回應
-        Conversation.add_message(db, conversation_id, 'assistant', ai_response)
-        
+
         return jsonify({
             'conversation_id': str(conversation_id),
-            'message': ai_response,
-            'sentiment': sentiment_score,
-            'warning_issued': needs_warning
+            'message': result['ai_response'],
+            'sentiment': result['sentiment_score'],
+            'warning_issued': result['needs_warning']
         }), 200
         
     except Exception as e:

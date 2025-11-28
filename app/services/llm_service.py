@@ -1,5 +1,6 @@
 from groq import Groq
 from flask import current_app
+from langsmith import traceable
 
 class LLMService:
     """Groq LLM 服務"""
@@ -25,6 +26,7 @@ class LLMService:
             else:
                 raise
 
+    @traceable(name="get_bartender_response")
     def get_bartender_response(self, user_message, conversation_history=None, user_preferences=None):
         """
         取得 AI 酒保的回應
@@ -129,6 +131,7 @@ class LLMService:
 
         return base_prompt
 
+    @traceable(name="analyze_sentiment_with_llm")
     def analyze_sentiment_with_llm(self, text):
         """
         使用 LLM 分析情感（備用方案）
