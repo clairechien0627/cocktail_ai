@@ -1,105 +1,16 @@
+"""
+Chat API (LangGraph 版本)
+整合 LangGraph Agent 的對話 API
+"""
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Conversation, User
-from app.services.llm_service import llm_service
 from app.services.sentiment import analyze_sentiment, should_warn_about_drinking
+from app.services.langgraph_agent import get_graph
+from app.services.conversation_manager import ConversationManager
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/api/chat')
-
-
-# ============== 新增的函數：查詢資料庫 ==============
-def query_cocktails_from_db(db, user_message, limit=3):
-    """改進版：更智慧的查詢"""
-    try:
-        from flask import current_app
-        current_app.logger.info(f"🔍 開始查詢資料庫，訊息：{user_message}")
-        
-        message_lower = user_message.lower()
-        query = {}
-        search_type = "default"  # 記錄查詢類型
-        
-        # ============== 優先級 1：搜尋特定調酒名稱 ==============
-        # 偵測搜尋關鍵字
-        search_keywords = ['找', '搜', '有沒有', '想喝', '來杯', 'search', 'find']
-        is_searching = any(kw in message_lower for kw in search_keywords)
-        
-        if is_searching:
-            # 移除搜尋關鍵字，提取調酒名稱
-            search_terms = message_lower
-            for kw in search_keywords:
-                search_terms = search_terms.replace(kw, '')
-            
-            # 移除常見的無用詞
-            for word in ['調酒', '的', '一杯', '給我', '請', '嗎', '呢', '啊']:
-                search_terms = search_terms.replace(word, '')
-            
-            search_terms = search_terms.strip()
-            
-            if search_terms:
-                query = {
-                    "$or": [
-                        {"name": {"$regex": search_terms, "$options": "i"}},
-                        {"description": {"$regex": search_terms, "$options": "i"}},
-                        {"ingredients.name": {"$regex": search_terms, "$options": "i"}}
-                    ]
-                }
-                search_type = "name_search"
-                current_app.logger.info(f"🔎 名稱搜尋模式，關鍵字：{search_terms}")
-        
-        # ============== 優先級 2：材料篩選 ==============
-        if not query:
-            spirits = {
-                '威士忌': 'whisky', '伏特加': 'vodka', '琴酒': 'gin',
-                '蘭姆': 'rum', '龍舌蘭': 'tequila', 'whisky': 'whisky',
-                'vodka': 'vodka', 'gin': 'gin', 'rum': 'rum', 'tequila': 'tequila'
-            }
-            
-            for zh, en in spirits.items():
-                if zh in message_lower:
-                    query['ingredients.name'] = {'$regex': en, '$options': 'i'}
-                    search_type = "ingredient"
-                    current_app.logger.info(f"🥃 材料篩選：{zh}")
-                    break
-        
-        # ============== 優先級 3：難度篩選 ==============
-        if not query:
-            if any(w in message_lower for w in ['簡單', 'easy', '新手']):
-                query['difficulty'] = 'easy'
-                search_type = "difficulty"
-                current_app.logger.info("📊 難度篩選：簡單")
-        
-        # ============== 優先級 4：預設查詢（放寬條件）==============
-        if not query:
-            query = {'rating': {'$gte': 3.0}}  # 放寬到 3.0
-            search_type = "default_rating"
-        
-        current_app.logger.info(f"查詢條件：{query}")
-        
-        # 執行查詢
-        cocktails = list(db.cocktails.find(query).sort('rating', -1).limit(limit))
-        
-        # 如果還是沒找到，最後備用方案
-        if not cocktails:
-            current_app.logger.warning("未找到符合條件的調酒，使用終極備用查詢")
-            cocktails = list(db.cocktails.find({}).sort('rating', -1).limit(limit))
-            search_type = "fallback"
-        
-        # 顯示結果
-        if cocktails:
-            names = [c['name'] for c in cocktails]
-            current_app.logger.info(f"✓ 查詢到 {len(cocktails)} 個調酒（{search_type}）：{names}")
-        else:
-            current_app.logger.error("❌ 資料庫中沒有任何調酒！")
-        
-        return cocktails
-        
-    except Exception as e:
-        from flask import current_app
-        current_app.logger.error(f"❌ 查詢錯誤: {e}")
-        return []
-
-
-# ====================================================
 
 
 @chat_bp.route('/conversations', methods=['POST'])
@@ -166,16 +77,32 @@ def get_conversation(conversation_id):
 @chat_bp.route('/message', methods=['POST'])
 @jwt_required()
 def send_message():
-    """發送訊息並取得 AI 酒保回應"""
+    """
+    發送訊息並取得 AI 酒保回應（使用 LangGraph）
+    
+    Request Body:
+        {
+            "message": "用戶訊息",
+            "conversation_id": "對話ID（可選）"
+        }
+    
+    Response:
+        {
+            "conversation_id": "對話ID",
+            "message": "AI 回應",
+            "sentiment": 0.5,
+            "warning_issued": false,
+            "tool_used": true
+        }
+    """
     try:
         from flask import current_app
         
-        # 檢查 Groq 服務是否可用
+        # 檢查服務是否可用
         if not current_app.config.get('GROQ_ENABLED', False):
             return jsonify({
                 'error': 'AI 對話服務暫時無法使用',
-                'message': '請確認 Groq API Key 已正確設定',
-                'tip': '請在 .env 檔案中設定 GROQ_API_KEY'
+                'message': '請確認 Groq API Key 已正確設定'
             }), 503
         
         user_id = get_jwt_identity()
@@ -198,58 +125,103 @@ def send_message():
             if not conversation:
                 return jsonify({'error': '對話不存在'}), 404
         
-        # 情感分析
+        # ============== 情感分析 ==============
         sentiment_score = analyze_sentiment(user_message)
         
+        # ============== 對話管理器 ==============
+        conv_manager = ConversationManager(db, conversation_id)
+        
         # 儲存用戶訊息
-        Conversation.add_message(db, conversation_id, 'user', user_message, sentiment_score)
+        conv_manager.save_message('user', user_message, sentiment_score)
         
-        # 取得用戶偏好
-        user = User.find_by_id(db, user_id)
-        user_preferences = user.get('preferences', {}) if user else {}
+        # ============== LangGraph Agent ==============
+        graph = get_graph()
         
-        # 取得對話歷史
-        conversation_history = Conversation.get_recent_messages(db, conversation_id)
-        formatted_history = [
-            {'role': msg['role'], 'content': msg['content']}
-            for msg in conversation_history[:-1]  # 排除剛剛加入的訊息
-        ]
+        # 準備狀態（直接獲取 Message 物件）
+        messages = conv_manager.get_messages(as_message_objects=True)
         
-        # ============== 新增：查詢資料庫 ==============
-        cocktails = query_cocktails_from_db(db, user_message, limit=3)
+        state = {
+            'messages': messages,
+            'user_message': user_message,
+            'conversation_id': str(conversation_id),
+            'user_id': str(user_id),
+            'current_query': conv_manager.context.get('current_query', {}),
+            'recommended_cocktails': conv_manager.context.get('recommended_cocktails', []),
+            'last_recommendation': conv_manager.context.get('last_recommendation', {}),
+            'response': '',
+            'tool_calls': []
+        }
         
-        if cocktails:
-            cocktail_info = "\n\n可推薦的調酒：\n"
-            for i, c in enumerate(cocktails, 1):
-                cocktail_info += f"{i}. {c['name']} (評分: {c.get('rating', 'N/A')}/5)\n"
-            user_preferences['available_cocktails'] = cocktail_info
-        # ============================================
+        # 執行 Graph
+        result = graph.invoke(state)
         
-        # 取得 AI 酒保回應
-        ai_response = llm_service.get_bartender_response(
-            user_message,
-            formatted_history,
-            user_preferences
-        )
+        # 取得 AI 回應（支援 Gemini 的 list 格式）
+        last_message = result['messages'][-1]
+        ai_response = ""
         
-        # 檢查是否需要責任飲酒警告
+        if hasattr(last_message, 'content'):
+            content = last_message.content
+            
+            # 字串格式（OpenAI, Groq）
+            if isinstance(content, str):
+                ai_response = content
+            # List 格式（Gemini）
+            elif isinstance(content, list):
+                text_parts = []
+                for item in content:
+                    if isinstance(item, dict) and item.get('type') == 'text':
+                        text_parts.append(item.get('text', ''))
+                ai_response = ' '.join(text_parts)
+            else:
+                ai_response = str(content)
+        
+        # 後備檢查
+        if not ai_response or ai_response.strip() == "":
+            ai_response = "抱歉，我目前無法回應。請稍後再試。"
+            current_app.logger.warning(f"Empty AI response for: {user_message}")
+        
+        # 檢查是否使用了工具
+        tool_used = False
+        tool_results = []
+        
+        for msg in result['messages']:
+            if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                tool_used = True
+            # 檢查是否為工具結果訊息
+            if hasattr(msg, 'content') and isinstance(msg.content, list):
+                for item in msg.content:
+                    if isinstance(item, dict):
+                        tool_results.append(item)
+        
+        # 更新上下文
+        conv_manager.update_context(ai_response, tool_results)
+        
+        # ============== 責任飲酒警告 ==============
         needs_warning = should_warn_about_drinking(user_message, sentiment_score)
         
         if needs_warning and '責任飲酒' not in ai_response:
             ai_response += "\n\n💡 小提醒：請記得理性飲酒，過量飲酒有害健康。如果您要開車或有其他不適合飲酒的情況，我也可以推薦美味的無酒精飲料喔！"
         
         # 儲存 AI 回應
-        Conversation.add_message(db, conversation_id, 'assistant', ai_response)
+        conv_manager.save_message('assistant', ai_response)
+        
+        current_app.logger.info(f"✓ 對話完成 (ID: {conversation_id}, 工具使用: {tool_used})")
         
         return jsonify({
             'conversation_id': str(conversation_id),
             'message': ai_response,
             'sentiment': sentiment_score,
-            'warning_issued': needs_warning
+            'warning_issued': needs_warning,
+            'tool_used': tool_used,
+            'mode': 'langgraph',
+            'langsmith_traced': current_app.config.get('LANGCHAIN_TRACING_V2') == 'true'
         }), 200
         
     except Exception as e:
+        from flask import current_app
         current_app.logger.error(f"發送訊息錯誤: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'發送訊息失敗: {str(e)}'}), 500
 
 
@@ -288,3 +260,29 @@ def delete_conversation(conversation_id):
         current_app.logger.error(f"❌ 刪除對話錯誤: {e}")
         return jsonify({'error': str(e)}), 500
 
+
+@chat_bp.route('/context/<conversation_id>', methods=['GET'])
+@jwt_required()
+def get_context(conversation_id):
+    """
+    取得對話上下文（除錯用）
+    
+    Returns:
+        {
+            "current_query": {...},
+            "recommended_cocktails": [...],
+            "last_recommendation": {...}
+        }
+    """
+    try:
+        from flask import current_app
+        db = current_app.config['DB']
+        
+        conv_manager = ConversationManager(db, conversation_id)
+        
+        return jsonify({
+            'context': conv_manager.context
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

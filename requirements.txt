@@ -16,9 +16,6 @@ textblob==0.17.1
 # 環境變數
 python-dotenv==1.0.0
 
-# HTTP 請求
-requests==2.31.0
-
 # 資料處理與分析
 pandas==2.1.4
 numpy==1.26.2
@@ -39,3 +36,30 @@ ipykernel==6.27.1
 
 # 密碼加密
 bcrypt==4.1.2
+
+# LangSmith
+langchain
+langchain-groq
+langgraph
+langchain-core
+langchain-text-splitters
+langchain-google-genai
+langchain-openai
+
+# 向量資料庫 
+qdrant-client==1.7.0
+chromadb==0.4.22
+onnxruntime
+
+# Embedding 模型 
+sentence-transformers==2.3.1
+torch==2.1.2
+transformers==4.39.3
+
+# 外部 API
+tavily-python
+
+# 工具與輔助 
+requests==2.31.0
+tqdm==4.66.1
+
