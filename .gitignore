@@ -26,6 +26,10 @@ import_IBA.py
 update_cocktails_data.py
 merge_categories.py
 export_visualizations.py
+crawl_filter_options.py
+analyze_filter_coverage.py
+diffords_filter_report.md
+filter_analysis_and_recommendations.md
 *.json
 
 # Virtual Environment

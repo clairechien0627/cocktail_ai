@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Wine, MessageCircle, BookOpen, User, LogOut } from 'lucide-react';
+import { Wine, MessageCircle, BookOpen, User, LogOut, BookMarked, TrendingUp, Sparkles } from 'lucide-react';
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -38,6 +38,30 @@ const Navbar = () => {
               >
                 <BookOpen className="w-5 h-5" />
                 <span>調酒瀏覽</span>
+              </Link>
+
+              <Link
+                to="/records"
+                className="flex items-center space-x-1 text-gray-700 hover:text-primary-600 transition-colors"
+              >
+                <BookMarked className="w-5 h-5" />
+                <span>飲用紀錄</span>
+              </Link>
+
+              <Link
+                to="/preferences"
+                className="flex items-center space-x-1 text-gray-700 hover:text-primary-600 transition-colors"
+              >
+                <TrendingUp className="w-5 h-5" />
+                <span>偏好分析</span>
+              </Link>
+
+              <Link
+                to="/recommendations"
+                className="flex items-center space-x-1 text-gray-700 hover:text-primary-600 transition-colors"
+              >
+                <Sparkles className="w-5 h-5" />
+                <span>為你推薦</span>
               </Link>
 
               <Link

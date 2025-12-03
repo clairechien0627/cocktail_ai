@@ -63,7 +63,13 @@ export interface Cocktail {
   // 分類與標籤
   difficulty?: 'easy' | 'medium' | 'hard';
   tags?: string[];
+  tags_categorized?: TagsCategorized;  // 分類化的 tags
   more_categories?: string[];  // Difford's Guide 更多分類
+
+  // 推薦系統欄位
+  recommendation_reason?: string;  // 推薦理由
+  recommendation_type?: 'safe' | 'adventure' | 'hidden_gem' | 'popular' | 'newbie' | 'general';  // 推薦類型
+  similarity_score?: number;  // 相似度分數
 
   // 元數據
   scraped_at?: string;
@@ -129,6 +135,24 @@ export interface COTD {
   links?: any[];
 }
 
+// Tag 系統
+export interface TagsCategorized {
+  base_spirits: string[];
+  flavors: string[];
+  ingredients: string[];
+  styles: string[];
+}
+
+export interface TagsResponse {
+  tags: TagsCategorized;
+  counts: {
+    base_spirits: { [key: string]: number };
+    flavors: { [key: string]: number };
+    ingredients: { [key: string]: number };
+    styles: { [key: string]: number };
+  };
+}
+
 // 對話類型
 export interface Message {
   role: 'user' | 'assistant';
@@ -165,4 +189,119 @@ export interface CocktailsResponse {
   limit?: number;
   total?: number;
   total_pages?: number;
+}
+
+// 飲用紀錄類型
+export type PreferenceLevel = 'loved' | 'liked' | 'neutral' | 'disliked';
+
+export interface CocktailSnapshot {
+  name: string;
+  image_url?: string;
+  category: string;
+  taste_profile?: TasteProfile;
+  tags_categorized: TagsCategorized;
+}
+
+export interface DrinkingRecord {
+  _id: string;
+  user_id: string;
+  cocktail_id: string;
+  cocktail_snapshot: CocktailSnapshot;
+  preference: PreferenceLevel;
+  notes: string;
+  drunk_at: string;  // ISO datetime string
+  location?: string;
+  mood_tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DrinkingRecordsResponse {
+  records: DrinkingRecord[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
+export interface CreateRecordData {
+  cocktail_id: string;
+  preference: PreferenceLevel;
+  notes: string;
+  drunk_at?: string | Date;
+  location?: string;
+  mood_tags?: string[];
+}
+
+export interface UpdateRecordData {
+  preference?: PreferenceLevel;
+  notes?: string;
+  drunk_at?: string | Date;
+  location?: string;
+  mood_tags?: string[];
+}
+
+// 飲用統計類型
+export interface PreferenceDistribution {
+  loved: number;
+  liked: number;
+  neutral: number;
+  disliked: number;
+}
+
+export interface CocktailSummary {
+  _id: string;
+  cocktail_name: string;
+  cocktail_image?: string;
+  count?: number;  // for most drunk
+  preference?: PreferenceLevel;  // for favorites
+  last_drunk?: string;
+}
+
+export interface DrinkingStats {
+  total_drinks: number;
+  preference_distribution: PreferenceDistribution;
+  most_drunk_cocktails: CocktailSummary[];
+  favorite_cocktails: CocktailSummary[];
+}
+
+// 偏好分析類型
+export interface TagPreference {
+  tag: string;
+  count: number;
+}
+
+export interface TasteRange {
+  min: number;
+  max: number;
+  avg: number;
+}
+
+export interface TimeDistribution {
+  _id: number;  // hour of day (0-23)
+  count: number;
+}
+
+export interface MoodDistribution {
+  _id: string;  // mood tag name
+  count: number;
+}
+
+export interface UserPreferencesAnalysis {
+  favorite_tags: {
+    base_spirits: TagPreference[];
+    flavors: TagPreference[];
+    styles: TagPreference[];
+  };
+  taste_range: {
+    strength: TasteRange;
+    sweetness: TasteRange;
+  };
+  time_distribution: TimeDistribution[];
+  mood_distribution: MoodDistribution[];
+}
+
+export interface RecommendationsResponse {
+  recommendations: Cocktail[];
+  count: number;
 }

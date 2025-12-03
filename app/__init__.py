@@ -61,10 +61,12 @@ def create_app(config_class=Config):
     from app.routes.auth import auth_bp
     from app.routes.chat import chat_bp
     from app.routes.cocktails import cocktails_bp
+    from app.routes.drinking_records import records_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(cocktails_bp)
+    app.register_blueprint(records_bp)
 
     # 健康檢查路由
     @app.route('/health')
@@ -80,7 +82,8 @@ def create_app(config_class=Config):
             'endpoints': {
                 'auth': '/api/auth',
                 'chat': '/api/chat',
-                'cocktails': '/api/cocktails'
+                'cocktails': '/api/cocktails',
+                'records': '/api/records'
             }
         }, 200
 

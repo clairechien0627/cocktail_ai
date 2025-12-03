@@ -221,6 +221,23 @@ def filter_cocktails():
         if request.args.get('has_history') == 'true':
             filters['has_history'] = True
 
+        # Tag 篩選（新增）
+        if request.args.get('tags'):
+            # 支援逗號分隔的多個 tags
+            filters['tags'] = request.args.get('tags').split(',')
+        if request.args.get('base_spirit'):
+            filters['base_spirit'] = request.args.get('base_spirit')
+        if request.args.get('flavor'):
+            # 支援逗號分隔的多個 flavors
+            flavor_str = request.args.get('flavor')
+            filters['flavor'] = flavor_str.split(',') if ',' in flavor_str else flavor_str
+        if request.args.get('ingredient_tag'):
+            filters['ingredient_tag'] = request.args.get('ingredient_tag')
+        if request.args.get('style'):
+            # 支援逗號分隔的多個 styles
+            style_str = request.args.get('style')
+            filters['style'] = style_str.split(',') if ',' in style_str else style_str
+
         # 分頁參數
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 20))
@@ -261,6 +278,56 @@ def get_statistics():
             'total_cocktails': stats.get('total', 0),
             'average_rating': round(stats.get('avg_rating', 0), 2) if stats.get('avg_rating') else 0,
             'categories': stats.get('categories', [])
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@cocktails_bp.route('/tags', methods=['GET'])
+def get_all_tags():
+    """取得所有可用的 tags（分類顯示）
+
+    返回四個維度的所有 tags：
+    - base_spirits: 基酒類型
+    - flavors: 風味特徵
+    - ingredients: 主要材料
+    - styles: 風格/類型
+    """
+    try:
+        from flask import current_app
+        db = current_app.config['DB']
+
+        # 收集所有 tags
+        all_tags = {
+            'base_spirits': set(),
+            'flavors': set(),
+            'ingredients': set(),
+            'styles': set()
+        }
+
+        # 遍歷所有調酒收集 tags
+        cocktails = db.cocktails.find({}, {'tags_categorized': 1})
+        for cocktail in cocktails:
+            tags_cat = cocktail.get('tags_categorized', {})
+            for category, tags in tags_cat.items():
+                if isinstance(tags, list):
+                    all_tags[category].update(tags)
+
+        # 轉換為排序列表
+        result = {k: sorted(list(v)) for k, v in all_tags.items()}
+
+        # 統計每個 tag 的數量
+        tag_counts = {}
+        for category in ['base_spirits', 'flavors', 'ingredients', 'styles']:
+            tag_counts[category] = {}
+            for tag in result[category]:
+                count = db.cocktails.count_documents({f'tags_categorized.{category}': tag})
+                tag_counts[category][tag] = count
+
+        return jsonify({
+            'tags': result,
+            'counts': tag_counts
         }), 200
 
     except Exception as e:

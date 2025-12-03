@@ -7,6 +7,14 @@ import type {
   CocktailsResponse,
   Conversation,
   UserPreferences,
+  TagsResponse,
+  DrinkingRecord,
+  DrinkingRecordsResponse,
+  CreateRecordData,
+  UpdateRecordData,
+  DrinkingStats,
+  UserPreferencesAnalysis,
+  RecommendationsResponse,
 } from '../types';
 
 // API 基礎 URL
@@ -175,9 +183,101 @@ export const cocktailAPI = {
     return response.data;
   },
 
+  // 取得所有 Tags（分類顯示）
+  getTags: async (): Promise<TagsResponse> => {
+    const response = await api.get<TagsResponse>('/api/cocktails/tags');
+    return response.data;
+  },
+
   // 隨機取得一個調酒
   getRandom: async (): Promise<{ cocktail: Cocktail }> => {
     const response = await api.get<{ cocktail: Cocktail }>('/api/cocktails/random');
+    return response.data;
+  },
+};
+
+// ==================== 飲用紀錄 API ====================
+
+export const recordsAPI = {
+  // 建立飲用紀錄
+  create: async (data: CreateRecordData): Promise<{ message: string; record_id: string }> => {
+    const response = await api.post<{ message: string; record_id: string }>('/api/records/', data);
+    return response.data;
+  },
+
+  // 取得我的飲用紀錄（分頁、篩選）
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    preference?: string;
+    start_date?: string;
+    end_date?: string;
+    mood_tags?: string;
+    sort_by?: string;
+  }): Promise<DrinkingRecordsResponse> => {
+    const response = await api.get<DrinkingRecordsResponse>('/api/records/', { params });
+    return response.data;
+  },
+
+  // 取得特定紀錄
+  getById: async (recordId: string): Promise<DrinkingRecord> => {
+    const response = await api.get<DrinkingRecord>(`/api/records/${recordId}`);
+    return response.data;
+  },
+
+  // 更新紀錄
+  update: async (recordId: string, data: UpdateRecordData): Promise<{ message: string }> => {
+    const response = await api.put<{ message: string }>(`/api/records/${recordId}`, data);
+    return response.data;
+  },
+
+  // 刪除紀錄
+  delete: async (recordId: string): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/api/records/${recordId}`);
+    return response.data;
+  },
+
+  // 取得我的統計資訊
+  getStats: async (): Promise<DrinkingStats> => {
+    const response = await api.get<DrinkingStats>('/api/records/stats');
+    return response.data;
+  },
+
+  // 取得我的偏好分析
+  getPreferences: async (): Promise<UserPreferencesAnalysis> => {
+    const response = await api.get<UserPreferencesAnalysis>('/api/records/preferences');
+    return response.data;
+  },
+
+  // 取得個人化推薦
+  getRecommendations: async (limit?: number): Promise<RecommendationsResponse> => {
+    const response = await api.get<RecommendationsResponse>('/api/records/recommendations', {
+      params: { limit },
+    });
+    return response.data;
+  },
+
+  // 檢查是否喝過某調酒
+  checkIfDrunk: async (cocktailId: string): Promise<{ has_drunk: boolean }> => {
+    const response = await api.get<{ has_drunk: boolean }>(
+      `/api/records/cocktail/${cocktailId}/check`
+    );
+    return response.data;
+  },
+
+  // 取得對特定調酒的所有紀錄
+  getCocktailRecords: async (
+    cocktailId: string
+  ): Promise<{ records: DrinkingRecord[]; count: number }> => {
+    const response = await api.get<{ records: DrinkingRecord[]; count: number }>(
+      `/api/records/cocktail/${cocktailId}`
+    );
+    return response.data;
+  },
+
+  // 取得預設心情標籤選項
+  getMoodTags: async (): Promise<{ mood_tags: string[] }> => {
+    const response = await api.get<{ mood_tags: string[] }>('/api/records/mood-tags');
     return response.data;
   },
 };

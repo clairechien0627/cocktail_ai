@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.models import Cocktail
+from scripts.generate_tags import CocktailTagGenerator
 
 
 class DiffordsGuideImporter:
@@ -37,6 +38,7 @@ class DiffordsGuideImporter:
         self.data_dir = data_dir
         self.client = MongoClient(mongo_uri)
         self.db = self.client[db_name]
+        self.tag_generator = CocktailTagGenerator()  # 初始化完整 Tag 生成器
         self.stats = {
             'total_files': 0,
             'success': 0,
@@ -121,70 +123,46 @@ class DiffordsGuideImporter:
 
     def generate_tags(self, data):
         """
-        從調酒資料生成標籤
+        使用完整的 Tag 生成系統
 
-        標籤來源：
-        - 主要基酒
-        - 風味特徵
-        - 場合/時間
+        生成四個維度的 tags：
+        - base_spirits: 基酒類型 (12 種)
+        - flavors: 風味特徵 (20 種)
+        - ingredients: 主要材料 (32 種)
+        - styles: 風格/類型 (30 種，從 more_categories 映射)
+
+        Returns:
+            (all_tags, tags_categorized)
+            - all_tags: 扁平化的 tag 列表（用於搜索）
+            - tags_categorized: 分類的 tag 字典（用於篩選）
         """
-        tags = []
-        name = data.get('name', '').lower()
-        ingredients = ' '.join(data.get('ingredients', [])).lower()
+        # 使用完整的 CocktailTagGenerator
+        tags_dict = self.tag_generator.generate_tags(data)
 
-        # 基酒標籤
-        if 'vodka' in ingredients:
-            tags.append('vodka')
-        if 'gin' in ingredients:
-            tags.append('gin')
-        if 'rum' in ingredients:
-            tags.append('rum')
-        if 'tequila' in ingredients:
-            tags.append('tequila')
-        if 'whisky' in ingredients or 'whiskey' in ingredients or 'bourbon' in ingredients:
-            tags.append('whisky')
-        if 'brandy' in ingredients or 'cognac' in ingredients:
-            tags.append('brandy')
+        # 合併成單一列表（用於全文搜索）
+        all_tags = (
+            tags_dict['base_spirits'] +
+            tags_dict['flavors'] +
+            tags_dict['ingredients'] +
+            tags_dict['styles']
+        )
 
-        # 風味標籤
-        if 'coffee' in name or 'coffee' in ingredients or 'espresso' in ingredients:
-            tags.append('coffee')
-        if 'chocolate' in ingredients or 'cacao' in ingredients:
-            tags.append('chocolate')
-        if 'fruit' in ingredients or 'juice' in ingredients:
-            tags.append('fruity')
-        if 'cream' in ingredients:
-            tags.append('creamy')
-        if 'mint' in ingredients:
-            tags.append('minty')
-
-        # 風格標籤
-        if 'classic' in name:
-            tags.append('classic')
-        if 'tiki' in name:
-            tags.append('tiki')
-
-        # 場合標籤
-        taste_profile = data.get('strength_taste')
-        if taste_profile and isinstance(taste_profile, dict):
-            strength_data = taste_profile.get('strength')
-            if strength_data and isinstance(strength_data, dict):
-                strength = strength_data.get('value')
-                if strength and strength >= 8:
-                    tags.append('strong')
-                elif strength and strength <= 3:
-                    tags.append('light')
-
-        return tags
+        return all_tags, tags_dict
 
     def transform_cocktail(self, data):
         """轉換單一調酒資料以符合 schema"""
         transformed = data.copy()
 
-        # 推斷分類、難度、標籤
+        # 推斷分類、難度
         transformed['category'] = self.infer_category(data)
         transformed['difficulty'] = self.infer_difficulty(data)
-        transformed['tags'] = self.generate_tags(data)
+
+        # 使用完整 Tag 生成系統
+        tags, tags_categorized = self.generate_tags(data)
+        transformed['tags'] = tags
+        transformed['tags_categorized'] = tags_categorized
+
+        # more_categories 自動保留（已在 data 中）
 
         return transformed
 

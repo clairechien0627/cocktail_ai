@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
-import { cocktailAPI } from '../services/api';
+import { cocktailAPI, recordsAPI } from '../services/api';
 import { CategoryBadge } from '../utils/categoryIcons';
+import TagFilter from '../components/Cocktail/TagFilter';
+import { TagBadge } from '../utils/tagIcons';
+import { RecordForm } from '../components/Record';
 import {
   Search,
   Wine,
@@ -20,6 +23,8 @@ import {
   Link as LinkIcon,
   Sparkles,
   Leaf,
+  CheckCircle,
+  Edit3,
 } from 'lucide-react';
 import type { Cocktail } from '../types';
 
@@ -31,10 +36,25 @@ const CocktailsPage = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [moreCategories, setMoreCategories] = useState<string[]>([]);
   const [selectedMoreCategory, setSelectedMoreCategory] = useState<string>('all');
+  const [selectedTags, setSelectedTags] = useState<{
+    base_spirits: string[];
+    flavors: string[];
+    ingredients: string[];
+    styles: string[];
+  }>({
+    base_spirits: [],
+    flavors: [],
+    ingredients: [],
+    styles: [],
+  });
   const [selectedCocktail, setSelectedCocktail] = useState<Cocktail | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+
+  // 飲用紀錄相關狀態
+  const [showRecordForm, setShowRecordForm] = useState(false);
+  const [hasDrunk, setHasDrunk] = useState<boolean>(false);
 
   // 篩選條件
   const [filters, setFilters] = useState({
@@ -97,6 +117,19 @@ const CocktailsPage = () => {
           if (selectedMoreCategory !== 'all') {
             params.append('more_category', selectedMoreCategory);
           }
+          // Tag 篩選
+          if (selectedTags.base_spirits.length > 0) {
+            params.append('base_spirit', selectedTags.base_spirits[0]); // 基酒單選
+          }
+          if (selectedTags.flavors.length > 0) {
+            params.append('flavor', selectedTags.flavors.join(','));
+          }
+          if (selectedTags.ingredients.length > 0) {
+            params.append('ingredient_tag', selectedTags.ingredients[0]); // 材料單選
+          }
+          if (selectedTags.styles.length > 0) {
+            params.append('style', selectedTags.styles.join(','));
+          }
           if (filters.minRating > 0) {
             params.append('min_rating', filters.minRating.toString());
           }
@@ -144,7 +177,23 @@ const CocktailsPage = () => {
     };
 
     loadCocktails();
-  }, [searchQuery, selectedCategory, selectedMoreCategory, page, filters]);
+  }, [searchQuery, selectedCategory, selectedMoreCategory, selectedTags, page, filters]);
+
+  // 檢查是否喝過當前選中的調酒
+  useEffect(() => {
+    const checkIfDrunk = async () => {
+      if (selectedCocktail) {
+        try {
+          const response = await recordsAPI.checkIfDrunk(selectedCocktail._id);
+          setHasDrunk(response.has_drunk);
+        } catch (error) {
+          console.error('檢查飲用狀態失敗:', error);
+          setHasDrunk(false);
+        }
+      }
+    };
+    checkIfDrunk();
+  }, [selectedCocktail]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -342,26 +391,6 @@ const CocktailsPage = () => {
                 </select>
               </div>
 
-              {/* More Category */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">More Category</label>
-                <select
-                  value={selectedMoreCategory}
-                  onChange={(e) => {
-                    setSelectedMoreCategory(e.target.value);
-                    setPage(1);
-                  }}
-                  className="input-field"
-                >
-                  <option value="all">全部</option>
-                  {moreCategories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {/* 排序 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">排序</label>
@@ -413,6 +442,29 @@ const CocktailsPage = () => {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Tag 篩選器 */}
+      <div className="mb-6">
+        <TagFilter
+          selectedTags={selectedTags}
+          onTagChange={(dimension, tags) => {
+            setSelectedTags((prev) => ({
+              ...prev,
+              [dimension]: tags,
+            }));
+            setPage(1);
+          }}
+          onReset={() => {
+            setSelectedTags({
+              base_spirits: [],
+              flavors: [],
+              ingredients: [],
+              styles: [],
+            });
+            setPage(1);
+          }}
+        />
       </div>
 
       {/* 載入中 */}
@@ -575,13 +627,30 @@ const CocktailsPage = () => {
           >
             {/* 詳細內容將在下一個文件中實作 */}
             <div className="sticky top-0 bg-primary-600 text-white px-6 py-4 flex items-center justify-between z-10">
-              <h2 className="text-2xl font-bold">{selectedCocktail.name}</h2>
-              <button
-                onClick={() => setSelectedCocktail(null)}
-                className="text-white hover:text-gray-200"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-3 flex-1">
+                <h2 className="text-2xl font-bold">{selectedCocktail.name}</h2>
+                {hasDrunk && (
+                  <span className="flex items-center gap-1.5 px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+                    <CheckCircle className="w-4 h-4" />
+                    已喝過
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowRecordForm(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white text-primary-600 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  記錄飲用
+                </button>
+                <button
+                  onClick={() => setSelectedCocktail(null)}
+                  className="text-white hover:text-gray-200"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
 
             {/* 調酒大圖 */}
@@ -678,14 +747,6 @@ const CocktailsPage = () => {
                         : '困難'}
                     </span>
                   )}
-                  {selectedCocktail.tags?.slice(0, 5).map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
-                    >
-                      {tag}
-                    </span>
-                  ))}
                 </div>
               </div>
 
@@ -963,13 +1024,22 @@ const CocktailsPage = () => {
                 </div>
               )}
 
-              {/* More Categories */}
-              {selectedCocktail.more_categories && selectedCocktail.more_categories.length > 0 && (
+              {/* Tags */}
+              {selectedCocktail.tags_categorized && (
                 <div className="pt-4 border-t border-gray-200">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">More Categories</h4>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Tags</h4>
                   <div className="flex flex-wrap gap-2">
-                    {selectedCocktail.more_categories.map((category) => (
-                      <CategoryBadge key={category} categoryName={category} />
+                    {selectedCocktail.tags_categorized.base_spirits?.map((tag) => (
+                      <TagBadge key={tag} tag={tag} dimension="base_spirits" showColoredIcons={true} />
+                    ))}
+                    {selectedCocktail.tags_categorized.flavors?.map((tag) => (
+                      <TagBadge key={tag} tag={tag} dimension="flavors" showColoredIcons={true} />
+                    ))}
+                    {selectedCocktail.tags_categorized.ingredients?.map((tag) => (
+                      <TagBadge key={tag} tag={tag} dimension="ingredients" showColoredIcons={true} />
+                    ))}
+                    {selectedCocktail.tags_categorized.styles?.map((tag) => (
+                      <TagBadge key={tag} tag={tag} dimension="styles" showColoredIcons={true} />
                     ))}
                   </div>
                 </div>
@@ -992,6 +1062,23 @@ const CocktailsPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 飲用紀錄表單 */}
+      {showRecordForm && selectedCocktail && (
+        <RecordForm
+          cocktail={selectedCocktail}
+          onClose={() => setShowRecordForm(false)}
+          onSuccess={() => {
+            setShowRecordForm(false);
+            // 重新檢查是否已喝過
+            if (selectedCocktail) {
+              recordsAPI.checkIfDrunk(selectedCocktail._id)
+                .then(response => setHasDrunk(response.has_drunk))
+                .catch(() => setHasDrunk(false));
+            }
+          }}
+        />
       )}
     </div>
   );
