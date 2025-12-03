@@ -848,14 +848,18 @@ class DrinkingRecord:
         return round(score, 2)
 
     @staticmethod
-    def get_recommendations(db, user_id, limit=20):
+    def get_recommendations(db, user_id, limit=20, exclude_ids=None, exploration_mode='balanced'):
         """智能混合推薦引擎
 
         推薦策略：
-        - 40% 安全優先（高相似度）
-        - 30% 冒險探索（中等相似度，新類型）
-        - 15% 隱藏寶石（高專業評分但少人知道）
-        - 15% 熱門推薦（大眾喜愛）
+        - balanced 模式：40% 安全優先（高相似度）、30% 冒險探索（中等相似度，新類型）、15% 隱藏寶石、15% 熱門推薦
+        - adventurous 模式：20% 安全優先、60% 冒險探索、15% 隱藏寶石、5% 熱門推薦
+
+        參數：
+        - user_id: 用戶 ID
+        - limit: 返回數量
+        - exclude_ids: 已推薦過的調酒 ID 列表（用於分頁）
+        - exploration_mode: 'balanced' 或 'adventurous'
         """
         # 1. 取得用戶偏好分析
         preferences = DrinkingRecord.get_user_preferences(db, user_id)
@@ -867,19 +871,30 @@ class DrinkingRecord:
         )
         drunk_ids = [record['cocktail_id'] for record in drunk_cocktails]
 
-        # 3. 檢查是否有偏好資料（冷啟動處理）
+        # 3. 合併排除列表（已喝過 + 已推薦過）
+        if exclude_ids:
+            exclude_ids_obj = [ObjectId(id_str) if isinstance(id_str, str) else id_str for id_str in exclude_ids]
+            drunk_ids.extend(exclude_ids_obj)
+
+        # 去重
+        drunk_ids = list(set(drunk_ids))
+
+        # 4. 檢查是否有偏好資料（冷啟動處理）
         has_preferences = (
             len(preferences['favorite_tags']['base_spirits']) > 0 or
             len(preferences['favorite_tags']['flavors']) > 0
         )
 
         if not has_preferences:
-            # 新手推薦：經典、簡單、高評分
-            newbie_recommendations = list(db.cocktails.find({
-                '_id': {'$nin': drunk_ids},
-                'ratings.professional': {'$gte': 4.0},
-                'difficulty': {'$in': ['easy', 'medium']}
-            }).limit(limit))
+            # 新手推薦：經典、簡單、高評分（使用隨機抽樣）
+            newbie_recommendations = list(db.cocktails.aggregate([
+                {'$match': {
+                    '_id': {'$nin': drunk_ids},
+                    'ratings.professional': {'$gte': 4.0},
+                    'difficulty': {'$in': ['easy', 'medium']}
+                }},
+                {'$sample': {'size': limit}}
+            ]))
 
             for cocktail in newbie_recommendations:
                 cocktail['recommendation_reason'] = '經典入門推薦'
@@ -888,29 +903,32 @@ class DrinkingRecord:
 
             return newbie_recommendations
 
-        # 4. 查詢所有未喝過的調酒（限制數量以提高效能）
-        all_undrunk = list(db.cocktails.find({
-            '_id': {'$nin': drunk_ids}
-        }).limit(500))
+        # 5. 動態隨機抽樣候選調酒（解決字母順序偏差）
+        sample_size = random.randint(1000, 2000)
+        all_undrunk = list(db.cocktails.aggregate([
+            {'$match': {'_id': {'$nin': drunk_ids}}},
+            {'$sample': {'size': sample_size}}
+        ]))
 
         if not all_undrunk:
             return []
 
-        # 5. 計算每個調酒的相似度分數
+        # 6. 計算每個調酒的相似度分數
         cocktails_with_scores = []
         for cocktail in all_undrunk:
             similarity_score = DrinkingRecord.calculate_similarity_score(cocktail, preferences)
             cocktail['similarity_score'] = similarity_score
             cocktails_with_scores.append(cocktail)
 
-        # 6. 按相似度排序
+        # 7. 按相似度排序
         cocktails_with_scores.sort(key=lambda x: x['similarity_score'], reverse=True)
 
-        # 7. 分類到四個池
+        # 8. 分類到四個互斥的池（避免重複）
         safe_pool = []      # 高相似度 (分數 > 15)
         adventure_pool = []  # 中等相似度 (10 < 分數 <= 15)
         hidden_gems = []     # 專業評分 >= 4.5 且 公眾評論 <= 20
         popular_pool = []    # 公眾評論 >= 50
+        added_to_pool = set()  # 追蹤已加入池的調酒 ID
 
         # 提取用戶已嘗試過的基酒
         tried_spirits = set()
@@ -918,6 +936,10 @@ class DrinkingRecord:
             tried_spirits.add(item['tag'])
 
         for cocktail in cocktails_with_scores:
+            cocktail_id = str(cocktail['_id'])
+            if cocktail_id in added_to_pool:
+                continue
+
             score = cocktail['similarity_score']
             public_count = cocktail.get('ratings', {}).get('public_count', 0)
             if public_count is None:
@@ -929,31 +951,74 @@ class DrinkingRecord:
 
             cocktail_spirits = set(cocktail.get('tags_categorized', {}).get('base_spirits', []))
 
-            # 隱藏寶石池
+            # 優先級順序：隱藏寶石 > 熱門 > 安全/冒險（確保互斥）
             if professional_rating >= 4.5 and public_count <= 20:
                 hidden_gems.append(cocktail)
-
-            # 熱門池
-            if public_count >= 50:
+                added_to_pool.add(cocktail_id)
+            elif public_count >= 50:
                 popular_pool.append(cocktail)
-
-            # 安全池（高相似度）
-            if score > 15:
+                added_to_pool.add(cocktail_id)
+            elif score > 15:
                 safe_pool.append(cocktail)
-            # 冒險池（中等相似度 或 包含未嘗試的基酒）
+                added_to_pool.add(cocktail_id)
             elif score > 10 or (cocktail_spirits and not cocktail_spirits.issubset(tried_spirits)):
                 adventure_pool.append(cocktail)
+                added_to_pool.add(cocktail_id)
 
-        # 8. 按比例從各池抽取
-        safe_count = int(limit * 0.4)       # 8 個
-        adventure_count = int(limit * 0.3)  # 6 個
-        hidden_count = int(limit * 0.15)    # 3 個
-        popular_count = limit - safe_count - adventure_count - hidden_count  # 3 個
+        # 9. 根據探索模式調整比例
+        if exploration_mode == 'adventurous':
+            safe_count = int(limit * 0.2)       # 4 個
+            adventure_count = int(limit * 0.6)  # 12 個
+            hidden_count = int(limit * 0.15)    # 3 個
+            popular_count = limit - safe_count - adventure_count - hidden_count  # 1 個
+        else:  # balanced
+            safe_count = int(limit * 0.4)       # 8 個
+            adventure_count = int(limit * 0.3)  # 6 個
+            hidden_count = int(limit * 0.15)    # 3 個
+            popular_count = limit - safe_count - adventure_count - hidden_count  # 3 個
 
         recommendations = []
 
-        # 從安全池抽取
-        safe_selection = safe_pool[:safe_count] if len(safe_pool) >= safe_count else safe_pool
+        # 分散化抽取函數（確保多樣性）
+        def diversified_sample(pool, count):
+            """從池中分散抽取，確保涵蓋不同基酒/風味"""
+            if len(pool) <= count:
+                return pool
+
+            selected = []
+            selected_spirits = set()
+            selected_flavors = set()
+            remaining = pool.copy()
+
+            # 第一輪：優先選擇不同基酒的調酒
+            for cocktail in remaining[:]:
+                if len(selected) >= count:
+                    break
+                spirits = set(cocktail.get('tags_categorized', {}).get('base_spirits', []))
+                if not spirits.intersection(selected_spirits):
+                    selected.append(cocktail)
+                    selected_spirits.update(spirits)
+                    remaining.remove(cocktail)
+
+            # 第二輪：優先選擇不同風味的調酒
+            for cocktail in remaining[:]:
+                if len(selected) >= count:
+                    break
+                flavors = set(cocktail.get('tags_categorized', {}).get('flavors', []))
+                if not flavors.intersection(selected_flavors):
+                    selected.append(cocktail)
+                    selected_flavors.update(flavors)
+                    remaining.remove(cocktail)
+
+            # 第三輪：從剩餘中均勻間隔抽取
+            if len(selected) < count:
+                step = max(1, len(remaining) // (count - len(selected)))
+                selected.extend(remaining[::step][:count - len(selected)])
+
+            return selected
+
+        # 從安全池抽取（分散化）
+        safe_selection = diversified_sample(safe_pool, safe_count)
         for cocktail in safe_selection:
             matching_spirits = [s for s in cocktail.get('tags_categorized', {}).get('base_spirits', [])
                               if s in [item['tag'] for item in preferences['favorite_tags']['base_spirits'][:2]]]
@@ -964,8 +1029,8 @@ class DrinkingRecord:
             cocktail['recommendation_type'] = 'safe'
         recommendations.extend(safe_selection)
 
-        # 從冒險池抽取
-        adventure_selection = adventure_pool[:adventure_count] if len(adventure_pool) >= adventure_count else adventure_pool
+        # 從冒險池抽取（分散化）
+        adventure_selection = diversified_sample(adventure_pool, adventure_count)
         for cocktail in adventure_selection:
             new_spirits = [s for s in cocktail.get('tags_categorized', {}).get('base_spirits', [])
                           if s not in tried_spirits]
@@ -976,8 +1041,8 @@ class DrinkingRecord:
             cocktail['recommendation_type'] = 'adventure'
         recommendations.extend(adventure_selection)
 
-        # 從隱藏寶石池抽取
-        hidden_selection = hidden_gems[:hidden_count] if len(hidden_gems) >= hidden_count else hidden_gems
+        # 從隱藏寶石池抽取（分散化）
+        hidden_selection = diversified_sample(hidden_gems, hidden_count)
         for cocktail in hidden_selection:
             rating = cocktail.get('ratings', {}).get('professional', 0)
             if rating is None:
@@ -986,8 +1051,8 @@ class DrinkingRecord:
             cocktail['recommendation_type'] = 'hidden_gem'
         recommendations.extend(hidden_selection)
 
-        # 從熱門池抽取
-        popular_selection = popular_pool[:popular_count] if len(popular_pool) >= popular_count else popular_pool
+        # 從熱門池抽取（分散化）
+        popular_selection = diversified_sample(popular_pool, popular_count)
         for cocktail in popular_selection:
             count = cocktail.get('ratings', {}).get('public_count', 0)
             if count is None:
@@ -996,7 +1061,18 @@ class DrinkingRecord:
             cocktail['recommendation_type'] = 'popular'
         recommendations.extend(popular_selection)
 
-        # 9. 如果不足 limit 數量，從剩餘高分調酒補充
+        # 10. 去重檢查（確保推薦結果無重複）
+        seen_ids = set()
+        unique_recommendations = []
+        for cocktail in recommendations:
+            cocktail_id = str(cocktail['_id'])
+            if cocktail_id not in seen_ids:
+                unique_recommendations.append(cocktail)
+                seen_ids.add(cocktail_id)
+
+        recommendations = unique_recommendations
+
+        # 11. 如果不足 limit 數量，從剩餘高分調酒補充
         if len(recommendations) < limit:
             remaining_count = limit - len(recommendations)
             remaining_ids = [c['_id'] for c in recommendations]
@@ -1007,8 +1083,34 @@ class DrinkingRecord:
                 cocktail['recommendation_type'] = 'general'
             recommendations.extend(additional)
 
-        # 10. 打亂順序（保持多樣性）
-        random.shuffle(recommendations)
+        # 12. 智能打亂順序（確保連續項目不會有相同基酒）
+        def smart_shuffle(items):
+            """智能打亂，避免相同基酒連續出現"""
+            if len(items) <= 2:
+                return items
+
+            shuffled = []
+            remaining = items.copy()
+            random.shuffle(remaining)
+
+            while remaining:
+                # 選擇下一個項目，避免與上一個有相同基酒
+                if shuffled:
+                    last_spirits = set(shuffled[-1].get('tags_categorized', {}).get('base_spirits', []))
+                    for i, cocktail in enumerate(remaining):
+                        curr_spirits = set(cocktail.get('tags_categorized', {}).get('base_spirits', []))
+                        if not curr_spirits.intersection(last_spirits):
+                            shuffled.append(remaining.pop(i))
+                            break
+                    else:
+                        # 找不到不同基酒，直接取第一個
+                        shuffled.append(remaining.pop(0))
+                else:
+                    shuffled.append(remaining.pop(0))
+
+            return shuffled
+
+        recommendations = smart_shuffle(recommendations)
 
         return recommendations[:limit]
 

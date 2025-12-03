@@ -238,14 +238,35 @@ def get_preferences():
 @records_bp.route('/recommendations', methods=['GET'])
 @jwt_required()
 def get_recommendations():
-    """取得個人化推薦調酒"""
+    """取得個人化推薦調酒
+
+    查詢參數：
+    - limit: 返回數量（預設 20）
+    - exclude_ids: 已推薦過的調酒 ID 列表（逗號分隔）
+    - exploration_mode: 'balanced' 或 'adventurous'（預設 balanced）
+    """
     try:
         user_id = get_jwt_identity()
         db = current_app.config['DB']
 
         limit = int(request.args.get('limit', 20))
 
-        recommendations = DrinkingRecord.get_recommendations(db, user_id, limit)
+        # 解析 exclude_ids 參數
+        exclude_ids_str = request.args.get('exclude_ids', '')
+        exclude_ids = [id.strip() for id in exclude_ids_str.split(',') if id.strip()] if exclude_ids_str else None
+
+        # 解析 exploration_mode 參數
+        exploration_mode = request.args.get('exploration_mode', 'balanced')
+        if exploration_mode not in ['balanced', 'adventurous']:
+            exploration_mode = 'balanced'
+
+        recommendations = DrinkingRecord.get_recommendations(
+            db,
+            user_id,
+            limit,
+            exclude_ids=exclude_ids,
+            exploration_mode=exploration_mode
+        )
 
         # 轉換 ObjectId 為字串
         for cocktail in recommendations:
@@ -257,7 +278,8 @@ def get_recommendations():
 
         return jsonify({
             'recommendations': recommendations,
-            'count': len(recommendations)
+            'count': len(recommendations),
+            'exploration_mode': exploration_mode
         }), 200
 
     except Exception as e:

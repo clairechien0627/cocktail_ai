@@ -250,9 +250,23 @@ export const recordsAPI = {
   },
 
   // 取得個人化推薦
-  getRecommendations: async (limit?: number): Promise<RecommendationsResponse> => {
+  getRecommendations: async (
+    limit?: number,
+    excludeIds?: string[],
+    explorationMode?: 'balanced' | 'adventurous'
+  ): Promise<RecommendationsResponse> => {
+    const params: any = { limit };
+
+    if (excludeIds && excludeIds.length > 0) {
+      params.exclude_ids = excludeIds.join(',');
+    }
+
+    if (explorationMode) {
+      params.exploration_mode = explorationMode;
+    }
+
     const response = await api.get<RecommendationsResponse>('/api/records/recommendations', {
-      params: { limit },
+      params,
     });
     return response.data;
   },
