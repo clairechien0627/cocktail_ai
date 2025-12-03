@@ -104,8 +104,13 @@ class Cocktail:
 
     @staticmethod
     def create(db, data):
-        """建立新調酒（支援完整 Difford's Guide schema）"""
+        """建立新調酒（只存英文主資料，中文另外進 cocktails_zh）"""
+        cocktail_id = data.get('slug') or data.get('cocktail_id')
+
         cocktail_data = {
+            # 共同 id，之後用來對應 cocktails_zh
+            'cocktail_id': cocktail_id,
+
             # 基本資訊
             'name': data.get('name'),
             'slug': data.get('slug'),
@@ -115,8 +120,8 @@ class Cocktail:
             'image_url': data.get('image_url') or data.get('image'),
 
             # 材料資訊
-            'ingredients': data.get('ingredients', []),  # 簡單列表
-            'ingredients_detail': data.get('ingredients_detail', []),  # 詳細配方（含份量）
+            'ingredients': data.get('ingredients', []),
+            'ingredients_detail': data.get('ingredients_detail', []),
 
             # 製作方法
             'method_sections': [
@@ -138,11 +143,11 @@ class Cocktail:
             # 風味檔案
             'taste_profile': {
                 'strength': data.get('strength_taste', {}).get('strength', {}).get('value')
-                            if isinstance(data.get('strength_taste', {}).get('strength'), dict)
-                            else None,
+                        if isinstance(data.get('strength_taste', {}).get('strength'), dict)
+                        else None,
                 'sweetness': data.get('strength_taste', {}).get('sweetness', {}).get('value')
-                             if isinstance(data.get('strength_taste', {}).get('sweetness'), dict)
-                             else None
+                            if isinstance(data.get('strength_taste', {}).get('sweetness'), dict)
+                            else None
             } if data.get('strength_taste') else None,
 
             # 營養資訊
@@ -175,7 +180,7 @@ class Cocktail:
             # 過敏原資訊
             'allergens': data.get('allergens', []),
 
-            # COTD (Cocktail of the Day) 資訊
+            # COTD 資訊
             'cotd': data.get('cotd'),
 
             # 分類與標籤
@@ -185,8 +190,9 @@ class Cocktail:
 
             # 元數據
             'scraped_at': data.get('scraped_at'),
-            'created_at': datetime.utcnow()
+            'created_at': datetime.utcnow(),
         }
+
         result = db.cocktails.insert_one(cocktail_data)
         return result.inserted_id
 

@@ -13,7 +13,14 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     # 初始化擴充套件
-    CORS(app, origins=app.config['CORS_ORIGINS'])
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": ["http://localhost:5173"]}},
+        supports_credentials=True,
+        allow_headers=["Content-Type", "Authorization"],
+        methods=["GET", "POST", "OPTIONS"],
+    )
+
     JWTManager(app)
 
     # 連接 MongoDB
@@ -65,6 +72,8 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(cocktails_bp)
+
+    
 
     # 健康檢查路由
     @app.route('/health')
