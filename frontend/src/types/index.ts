@@ -71,16 +71,30 @@ export interface Cocktail {
   recommendation_type?: 'safe' | 'adventure' | 'hidden_gem' | 'popular' | 'newbie' | 'general';  // 推薦類型
   similarity_score?: number;  // 相似度分數
 
+  // ===== 中文欄位（翻譯產生） =====
+  name_zh?: string;
+  ingredients_zh?: string[];
+  review_zh?: string[];
+  history_zh?: string[];
+  method_sections_zh?: {
+    title_zh?: string;
+    steps_zh?: string[];
+  }[];
+  more_categories_zh?: string[];
+  glass_zh?: string;
+
   // 元數據
   scraped_at?: string;
   created_at?: string;
 }
+
 
 // 詳細配方材料
 export interface IngredientDetail {
   amount: string;
   ingredient: string;
   ingredient_url?: string;
+  ingredient_zh?: string;   // 新增：材料名稱的中文
 }
 
 // 製作步驟區塊
@@ -125,8 +139,20 @@ export interface Variant {
 export interface Allergen {
   item: string;
   allergen: string;
+  allergen_url?: string; 
+
+  item_zh?: string;
+  allergen_zh?: string;
+}
+
+export interface AllergenZh {
+  item_zh?: string;
+  allergen_zh?: string;
   allergen_url?: string;
 }
+
+
+
 
 // COTD (Cocktail of the Day)
 export interface COTD {

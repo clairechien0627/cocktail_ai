@@ -117,6 +117,9 @@ FLASK_DEBUG=True
 > 若無，請先從 Google Drive 下載壓縮檔，並解壓縮後放置於指定目錄下：
 > https://drive.google.com/file/d/1BtOo_I3SJBxPb3CL7r3219cQ8Hs21wWi/view?usp=sharing
 
+請將含中文翻譯資料放在`data/diffordsguide_trans/` 目錄下
+> 
+
 ```bash
 # 檢查資料目錄
 ls data/diffordsguide/  # Mac/Linux

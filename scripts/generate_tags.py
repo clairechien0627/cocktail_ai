@@ -85,30 +85,6 @@ class CocktailTagGenerator:
                     'bittersweet', 'bitter liqueur'
                 ]
             },
-            'sour': {
-                'method': 'check_taste',
-                'field': 'sweetness',
-                'condition': '>=',
-                'threshold': 7
-            },
-            'sweet': {
-                'method': 'check_taste',
-                'field': 'sweetness',
-                'condition': '<=',
-                'threshold': 3
-            },
-            'dry': {
-                'method': 'check_taste',
-                'field': 'sweetness',
-                'condition': '>=',
-                'threshold': 8
-            },
-            'boozy': {
-                'method': 'check_taste',
-                'field': 'strength',
-                'condition': '>=',
-                'threshold': 8
-            },
             'creamy': {
                 'keywords': [
                     'cream', 'milk', 'coconut cream', 'irish cream',
@@ -120,7 +96,7 @@ class CocktailTagGenerator:
                 'keywords': [
                     'mint', 'basil', 'thyme', 'rosemary', 'absinthe',
                     'chartreuse', 'benedictine', 'bénédictine', 'herbal',
-                    'sage', 'cilantro', 'coriander', 'dill', 'tarragon'
+                    'sage', 'cilantro', 'coriander', 'dill', 'tarragon', 'herbal'
                 ]
             },
             'floral': {

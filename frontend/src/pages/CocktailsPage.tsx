@@ -48,6 +48,7 @@ const CocktailsPage = () => {
     styles: [],
   });
   const [selectedCocktail, setSelectedCocktail] = useState<Cocktail | null>(null);
+  const [langZh, setLangZh] = useState(false); // false=英文, true=中文
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
@@ -492,12 +493,6 @@ const CocktailsPage = () => {
                       {cocktail.name}
                     </h3>
                   </div>
-                  {/* COTD 標記 */}
-                  {cocktail.cotd?.text && (
-                    <div className="flex-shrink-0">
-                      <Sparkles className="w-5 h-5 text-yellow-500 fill-yellow-400" />
-                    </div>
-                  )}
                 </div>
 
                 {/* 評分 */}
@@ -628,7 +623,13 @@ const CocktailsPage = () => {
             {/* 詳細內容將在下一個文件中實作 */}
             <div className="sticky top-0 bg-primary-600 text-white px-6 py-4 flex items-center justify-between z-10">
               <div className="flex items-center gap-3 flex-1">
-                <h2 className="text-2xl font-bold">{selectedCocktail.name}</h2>
+                <h2 className="text-2xl font-bold">
+                  {langZh
+                    ? selectedCocktail.name_zh
+                      ? `${selectedCocktail.name_zh} (${selectedCocktail.name})`
+                      : selectedCocktail.name
+                    : selectedCocktail.name}
+                </h2>
                 {hasDrunk && (
                   <span className="flex items-center gap-1.5 px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
                     <CheckCircle className="w-4 h-4" />
@@ -637,6 +638,13 @@ const CocktailsPage = () => {
                 )}
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setLangZh((v) => !v)}
+                  className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-white bg-opacity-20 hover:bg-opacity-30 transition-colors"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                  {langZh ? '英' : '中'}
+                </button>
                 <button
                   onClick={() => setShowRecordForm(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-white text-primary-600 rounded-lg font-medium hover:bg-gray-100 transition-colors"
@@ -655,7 +663,8 @@ const CocktailsPage = () => {
 
             {/* 調酒大圖 */}
             {selectedCocktail.image_url && (
-              <div className="relative w-full h-96 bg-gray-900 overflow-hidden">
+              <div className="relative w-full h-96 bg-white overflow-hidden">
+
                 <img
                   src={selectedCocktail.image_url}
                   alt={selectedCocktail.name}
@@ -726,7 +735,7 @@ const CocktailsPage = () => {
                     </div>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2 items-start">
+                <div className="flex flex-wrap gap-2 items-start justify-end">
                   <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
                     {selectedCocktail.category}
                   </span>
@@ -814,14 +823,28 @@ const CocktailsPage = () => {
                   <ul className="space-y-2">
                     {selectedCocktail.ingredients_detail &&
                     selectedCocktail.ingredients_detail.length > 0 ? (
-                      selectedCocktail.ingredients_detail.map((detail, i) => (
-                        <li key={i} className="flex items-start gap-3">
-                          <span className="font-semibold text-primary-600 min-w-[80px]">
-                            {detail.amount}
-                          </span>
-                          <span className="text-gray-900">{detail.ingredient}</span>
-                        </li>
-                      ))
+                      selectedCocktail.ingredients_detail.map((detail, i) => {
+                        const zhName = langZh && selectedCocktail.ingredients_zh?.[i]
+                          ? selectedCocktail.ingredients_zh[i]
+                          : null;
+                        return (
+                          <li key={i} className="flex items-start gap-3">
+                            <span className="font-semibold text-primary-600 min-w-[80px]">
+                              {detail.amount}
+                            </span>
+                            <span className="text-gray-900">
+                              {zhName ? (
+                                <>
+                                  {zhName}
+                                  <span className="text-gray-500 text-sm ml-2">({detail.ingredient})</span>
+                                </>
+                              ) : (
+                                detail.ingredient
+                              )}
+                            </span>
+                          </li>
+                        );
+                      })
                     ) : selectedCocktail.ingredients && selectedCocktail.ingredients.length > 0 ? (
                       selectedCocktail.ingredients.map((ing, i) => (
                         <li key={i} className="text-gray-900">
@@ -846,22 +869,28 @@ const CocktailsPage = () => {
                     {selectedCocktail.method_sections &&
                     selectedCocktail.method_sections.length > 0 ? (
                       <div className="space-y-4">
-                        {selectedCocktail.method_sections.map((section, i) => (
-                          <div key={i}>
-                            <h4 className="font-semibold text-primary-600 mb-2">
-                              {section.title}
-                            </h4>
-                            {section.steps && section.steps.length > 0 && (
-                              <ol className="list-decimal list-inside space-y-1">
-                                {section.steps.map((step, j) => (
-                                  <li key={j} className="text-gray-700">
-                                    {step}
-                                  </li>
-                                ))}
-                              </ol>
-                            )}
-                          </div>
-                        ))}
+                        {selectedCocktail.method_sections.map((section, i) => {
+                          const zhSection = langZh && selectedCocktail.method_sections_zh?.[i];
+                          return (
+                            <div key={i}>
+                              <h4 className="font-semibold text-primary-600 mb-2">
+                                {zhSection?.title_zh || section.title}
+                              </h4>
+                              {section.steps && section.steps.length > 0 && (
+                                <ol className="list-decimal list-inside space-y-1">
+                                  {section.steps.map((step, j) => {
+                                    const zhStep = zhSection?.steps_zh?.[j];
+                                    return (
+                                      <li key={j} className="text-gray-700">
+                                        {langZh && zhStep ? zhStep : step}
+                                      </li>
+                                    );
+                                  })}
+                                </ol>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-gray-500 italic">無製作步驟資訊</p>
@@ -936,7 +965,11 @@ const CocktailsPage = () => {
                     <GlassWater className="w-5 h-5 text-purple-600" />
                     <h4 className="font-semibold text-purple-800">建議杯具</h4>
                   </div>
-                  <p className="text-purple-700">{selectedCocktail.glass}</p>
+                  <p className="text-purple-700">
+                    {langZh && selectedCocktail.glass_zh
+                      ? `${selectedCocktail.glass_zh} (${selectedCocktail.glass})`
+                      : selectedCocktail.glass}
+                  </p>
                 </div>
               )}
 
@@ -948,7 +981,10 @@ const CocktailsPage = () => {
                     歷史與故事
                   </h3>
                   <div className="bg-amber-50 rounded-lg p-4 space-y-2">
-                    {selectedCocktail.history.map((paragraph, i) => (
+                    {(langZh && selectedCocktail.history_zh?.length
+                      ? selectedCocktail.history_zh
+                      : selectedCocktail.history
+                    ).map((paragraph, i) => (
                       <p key={i} className="text-gray-700 leading-relaxed">
                         {paragraph}
                       </p>
@@ -965,7 +1001,10 @@ const CocktailsPage = () => {
                     專業評論
                   </h3>
                   <div className="bg-indigo-50 rounded-lg p-4 space-y-2">
-                    {selectedCocktail.review.map((comment, i) => (
+                    {(langZh && selectedCocktail.review_zh?.length
+                      ? selectedCocktail.review_zh
+                      : selectedCocktail.review
+                    ).map((comment, i) => (
                       <p key={i} className="text-gray-700 italic leading-relaxed">
                         "{comment}"
                       </p>
@@ -1013,9 +1052,16 @@ const CocktailsPage = () => {
                           <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                           <div>
                             <span className="font-semibold text-red-800">
-                              {allergen.item}
+                              {langZh && allergen.item_zh
+                                ? `${allergen.item_zh} (${allergen.item})`
+                                : allergen.item}
                             </span>
-                            <span className="text-red-700"> - {allergen.allergen}</span>
+                            <span className="text-red-700">
+                              {' - '}
+                              {langZh && allergen.allergen_zh
+                                ? allergen.allergen_zh
+                                : allergen.allergen}
+                            </span>
                           </div>
                         </li>
                       ))}
@@ -1040,6 +1086,21 @@ const CocktailsPage = () => {
                     ))}
                     {selectedCocktail.tags_categorized.styles?.map((tag) => (
                       <TagBadge key={tag} tag={tag} dimension="styles" showColoredIcons={true} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* More Categories */}
+              {selectedCocktail.more_categories && selectedCocktail.more_categories.length > 0 && (
+                <div className="pt-4 border-t border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">More Categories</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {(langZh && selectedCocktail.more_categories_zh?.length
+                      ? selectedCocktail.more_categories_zh
+                      : selectedCocktail.more_categories
+                    ).map((category, i) => (
+                      <CategoryBadge key={i} categoryName={category} />
                     ))}
                   </div>
                 </div>
