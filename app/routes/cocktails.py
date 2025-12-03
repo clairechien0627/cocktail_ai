@@ -11,7 +11,7 @@ CORS(
     resources={r"/api/*": {"origins": ["http://localhost:5173"]}},
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization"],
-    methods=["GET", "POST", "OPTIONS"],
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 )
 
 
@@ -324,6 +324,39 @@ def get_statistics():
             ),
             200,
         )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@cocktails_bp.route("/search", methods=["GET"])
+def search_cocktails():
+    """搜尋調酒（依名稱或材料）"""
+    try:
+        from flask import current_app
+        db = current_app.config["DB"]
+
+        query = request.args.get("q", "").strip()
+        if not query:
+            return jsonify({"cocktails": [], "count": 0}), 200
+
+        # 建立搜尋條件（不區分大小寫）
+        search_pattern = {"$regex": query, "$options": "i"}
+        filter_query = {
+            "$or": [
+                {"name": search_pattern},
+                {"ingredients": search_pattern},
+                {"category": search_pattern},
+            ]
+        }
+
+        # 執行搜尋
+        cocktails = list(db.cocktails.find(filter_query).limit(100))
+
+        # 合併中文資料
+        cocktails = [merge_cocktail_with_zh(db, c) for c in cocktails]
+
+        return jsonify({"cocktails": cocktails, "count": len(cocktails)}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

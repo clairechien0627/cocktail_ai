@@ -475,6 +475,17 @@ const CocktailsPage = () => {
         </div>
       )}
 
+      {/* 列表語言切換按鈕 */}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => setLangZh((v) => !v)}
+          className="inline-flex items-center gap-1 text-xs px-3 py-1 rounded-full border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 shadow-sm"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+          {langZh ? '顯示英文' : '顯示中文'}
+        </button>
+      </div>
+
       {/* 調酒網格 */}
       {!loading && (
         <>
@@ -490,7 +501,9 @@ const CocktailsPage = () => {
                   <div className="flex items-center gap-3 flex-1">
                     <Wine className="w-8 h-8 text-primary-600 flex-shrink-0" />
                     <h3 className="font-bold text-lg text-gray-900 line-clamp-2">
-                      {cocktail.name}
+                      {langZh && cocktail.name_zh
+                        ? cocktail.name_zh
+                        : cocktail.name}
                     </h3>
                   </div>
                 </div>
@@ -866,35 +879,47 @@ const CocktailsPage = () => {
                     製作方法
                   </h3>
                   <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    {selectedCocktail.method_sections &&
-                    selectedCocktail.method_sections.length > 0 ? (
-                      <div className="space-y-4">
-                        {selectedCocktail.method_sections.map((section, i) => {
-                          const zhSection = langZh && selectedCocktail.method_sections_zh?.[i];
-                          return (
-                            <div key={i}>
-                              <h4 className="font-semibold text-primary-600 mb-2">
-                                {zhSection?.title_zh || section.title}
-                              </h4>
-                              {section.steps && section.steps.length > 0 && (
+                    {(() => {
+                      // 根據語言選擇使用哪個數據源
+                      const methodSections = langZh && selectedCocktail.method_sections_zh?.length
+                        ? selectedCocktail.method_sections_zh
+                        : selectedCocktail.method_sections;
+
+                      if (!methodSections || methodSections.length === 0) {
+                        return <p className="text-gray-500 italic">無製作步驟資訊</p>;
+                      }
+
+                      return (
+                        <div className="space-y-4">
+                          {methodSections.map((section: any, i: number) => {
+                            // 根據語言獲取標題和步驟
+                            const title = langZh
+                              ? (section.title_zh || section.title)
+                              : section.title;
+                            const steps = langZh
+                              ? (section.steps_zh || section.steps || [])
+                              : (section.steps || []);
+
+                            if (steps.length === 0) return null;
+
+                            return (
+                              <div key={i}>
+                                <h4 className="font-semibold text-primary-600 mb-2">
+                                  {title}
+                                </h4>
                                 <ol className="list-decimal list-inside space-y-1">
-                                  {section.steps.map((step, j) => {
-                                    const zhStep = zhSection?.steps_zh?.[j];
-                                    return (
-                                      <li key={j} className="text-gray-700">
-                                        {langZh && zhStep ? zhStep : step}
-                                      </li>
-                                    );
-                                  })}
+                                  {steps.map((step: string, j: number) => (
+                                    <li key={j} className="text-gray-700">
+                                      {step}
+                                    </li>
+                                  ))}
                                 </ol>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 italic">無製作步驟資訊</p>
-                    )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                 </div>

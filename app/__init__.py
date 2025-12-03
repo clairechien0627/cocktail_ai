@@ -18,7 +18,7 @@ def create_app(config_class=Config):
         resources={r"/api/*": {"origins": ["http://localhost:5173"]}},
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization"],
-        methods=["GET", "POST", "OPTIONS"],
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     )
 
     JWTManager(app)
