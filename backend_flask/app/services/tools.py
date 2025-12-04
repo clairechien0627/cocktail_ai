@@ -1,6 +1,6 @@
 """
-LangGraph 工具函數（改進版）
-提供 7 個工具供 Agent 使用，使用清晰的描述和 Pydantic schema
+LangGraph 工具函數
+提供 7 個工具供 Agent 使用，明確指定工具名稱和描述以提升相容性
 """
 
 from typing import List, Optional, Dict, Any
@@ -31,11 +31,11 @@ class FilterByAttributesInput(BaseModel):
     """屬性篩選輸入"""
     min_strength: Optional[int] = Field(
         default=None,
-        description="最低酒精強度 (0-5)"
+        description="最低酒精強度 (0-10)"
     )
     max_strength: Optional[int] = Field(
         default=None,
-        description="最高酒精強度 (0-5)"
+        description="最高酒精強度 (0-10)"
     )
     min_sweetness: Optional[int] = Field(
         default=None,
@@ -96,20 +96,15 @@ class SearchByCategoryInput(BaseModel):
     )
 
 
-# ========== 工具定義 ==========
+# ========== 工具定義（加上自定義 name 和 description）==========
 
-@tool(args_schema=SearchByNameInput)
+@tool(
+    "search_by_name",
+    args_schema=SearchByNameInput,
+    description="Search for a cocktail by its exact name to get complete recipe, ingredients, steps, and ratings. Use this when the user asks about a specific cocktail like 'How to make a Mojito?' or 'Tell me about Margarita'."
+)
 def search_by_name(name: str) -> Dict[str, Any]:
-    """
-    根據調酒名稱搜尋完整配方和資訊。
-    
-    使用時機：
-    - 用戶想知道特定調酒的做法，例如："Mojito 怎麼做？"
-    - 用戶詢問特定調酒的資訊，例如："告訴我 Margarita 的配方"
-    
-    Returns:
-        包含完整配方、材料、步驟、評分等資訊的調酒資料
-    """
+    """根據調酒名稱搜尋完整配方和資訊。"""
     db = current_app.config['DB']
     
     cocktail = db.cocktails.find_one({
@@ -123,21 +118,16 @@ def search_by_name(name: str) -> Dict[str, Any]:
     return cocktail
 
 
-@tool(args_schema=SearchByIngredientsInput)
+@tool(
+    "search_by_ingredients",
+    args_schema=SearchByIngredientsInput,
+    description="Search for cocktails that contain specific ingredients. Use this when the user mentions ingredients they have (e.g., 'I have vodka and lime juice, what can I make?') or wants cocktails with certain ingredients (e.g., 'Show me gin cocktails')."
+)
 def search_by_ingredients(
     ingredients: List[str], 
     match_mode: str = "any"
 ) -> List[Dict[str, Any]]:
-    """
-    根據材料搜尋調酒。
-    
-    使用時機：
-    - 用戶提到手上有某些材料，例如："我有伏特加和檸檬汁，可以做什麼？"
-    - 用戶想要包含特定材料的調酒，例如："有什麼琴酒的調酒？"
-    
-    Returns:
-        符合材料條件的調酒列表（最多5個，按評分排序）
-    """
+    """根據材料搜尋調酒。"""
     db = current_app.config['DB']
     
     if match_mode == "all":
@@ -170,7 +160,11 @@ def search_by_ingredients(
     return cocktails
 
 
-@tool(args_schema=FilterByAttributesInput)
+@tool(
+    "filter_by_attributes",
+    args_schema=FilterByAttributesInput,
+    description="Filter cocktails by multiple attributes like strength, sweetness, difficulty, calories, category, and rating. Use this when the user specifies preferences (e.g., 'easy cocktails', 'low calorie', 'high rated', 'strong drinks', 'sweet cocktails')."
+)
 def filter_by_attributes(
     min_strength: Optional[int] = None,
     max_strength: Optional[int] = None,
@@ -181,16 +175,7 @@ def filter_by_attributes(
     category: Optional[str] = None,
     min_rating: Optional[float] = None
 ) -> List[Dict[str, Any]]:
-    """
-    根據多個屬性篩選調酒（強度、甜度、難度、卡路里、評分等）。
-    
-    使用時機：
-    - 用戶提到特定條件，例如："簡單的調酒"、"低卡路里的"、"高評分的"
-    - 用戶想要特定強度或甜度，例如："濃一點的"、"甜一點的"
-    
-    Returns:
-        符合篩選條件的調酒列表（最多10個，按評分排序）
-    """
+    """根據多個屬性篩選調酒。"""
     db = current_app.config['DB']
     
     query = {}
@@ -236,18 +221,13 @@ def filter_by_attributes(
     return cocktails
 
 
-@tool(args_schema=SearchByTasteInput)
+@tool(
+    "search_by_taste_semantic",
+    args_schema=SearchByTasteInput,
+    description="Use AI semantic search to find cocktails based on taste descriptions. Use this when the user describes taste preferences with adjectives (e.g., 'refreshing and sour', 'strong and bitter', 'sweet and fruity', 'light and crisp'). Requires RAG service."
+)
 def search_by_taste_semantic(query: str, limit: int = 5) -> List[Dict[str, Any]]:
-    """
-    使用 AI 語義搜尋根據口味描述找調酒（需要 RAG 功能）。
-    
-    使用時機：
-    - 用戶描述口味感受，例如："清爽酸甜的"、"濃烈苦澀的"、"果香味重的"
-    - 用戶用形容詞描述想要的味道，例如："refreshing"、"sweet and fruity"
-    
-    Returns:
-        口味相似的調酒列表（按相似度排序）
-    """
+    """使用 AI 語義搜尋根據口味描述找調酒。"""
     try:
         from app.services.rag_service import rag_service
         
@@ -261,18 +241,13 @@ def search_by_taste_semantic(query: str, limit: int = 5) -> List[Dict[str, Any]]
         return [{'error': f'語義搜尋失敗: {str(e)}'}]
 
 
-@tool(args_schema=SearchByScenarioInput)
+@tool(
+    "search_by_scenario_semantic",
+    args_schema=SearchByScenarioInput,
+    description="Use AI semantic search to find cocktails based on scenarios and occasions. Use this when the user mentions situations (e.g., 'celebration drinks', 'date night', 'party cocktails'), seasons (e.g., 'summer beach', 'winter warmth'), or contexts (e.g., 'after work drinks'). Requires RAG service."
+)
 def search_by_scenario_semantic(query: str, limit: int = 5) -> List[Dict[str, Any]]:
-    """
-    使用 AI 語義搜尋根據場景描述找調酒（需要 RAG 功能）。
-    
-    使用時機：
-    - 用戶提到場景或情境，例如："慶祝用的"、"約會時喝"、"派對上的"
-    - 用戶提到季節或環境，例如："夏天海邊"、"冬天溫暖"、"辦公室下班後"
-    
-    Returns:
-        適合場景的調酒列表（按相似度排序）
-    """
+    """使用 AI 語義搜尋根據場景描述找調酒。"""
     try:
         from app.services.rag_service import rag_service
         
@@ -286,18 +261,13 @@ def search_by_scenario_semantic(query: str, limit: int = 5) -> List[Dict[str, An
         return [{'error': f'語義搜尋失敗: {str(e)}'}]
 
 
-@tool(args_schema=SearchByCategoryInput)
+@tool(
+    "search_by_category",
+    args_schema=SearchByCategoryInput,
+    description="Search for cocktails by their category or base spirit. Use this when the user asks about specific types (e.g., 'gin cocktails', 'vodka drinks', 'tequila based', 'whiskey cocktails', 'rum drinks')."
+)
 def search_by_category(category: str, limit: int = 5) -> List[Dict[str, Any]]:
-    """
-    根據分類搜尋調酒。
-    
-    使用時機：
-    - 用戶提到基酒或分類，例如："琴酒調酒"、"伏特加的"、"龍舌蘭類的"
-    - 用戶詢問某種類型，例如："有什麼 Gin Cocktails？"
-    
-    Returns:
-        該分類的調酒列表（最多限制數量，按評分排序）
-    """
+    """根據分類搜尋調酒。"""
     db = current_app.config['DB']
     
     cocktails = list(
@@ -317,18 +287,12 @@ def search_by_category(category: str, limit: int = 5) -> List[Dict[str, Any]]:
     return cocktails
 
 
-@tool
+@tool(
+    "get_random_cocktail",
+    description="Get a random cocktail recommendation. Use this when the user says 'surprise me', 'random', 'anything', 'I don't care', or wants to explore without specific preferences."
+)
 def get_random_cocktail() -> Dict[str, Any]:
-    """
-    隨機推薦一款調酒。
-    
-    使用時機：
-    - 用戶說"隨便"、"驚喜我"、"給我推薦一個"
-    - 用戶沒有特定偏好，想要探索新選項
-    
-    Returns:
-        隨機選擇的一款調酒
-    """
+    """隨機推薦一款調酒。"""
     db = current_app.config['DB']
     
     # 使用 MongoDB 的 aggregate 隨機取樣
@@ -354,3 +318,4 @@ ALL_TOOLS = [
     search_by_category,
     get_random_cocktail
 ]
+

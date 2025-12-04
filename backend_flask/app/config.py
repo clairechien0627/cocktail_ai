@@ -20,6 +20,7 @@ class Config:
     # API 設定
     GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
     LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'gemini')
 
     # CORS 設定
