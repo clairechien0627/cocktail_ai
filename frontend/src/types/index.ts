@@ -82,6 +82,7 @@ export interface Cocktail {
   }[];
   more_categories_zh?: string[];
   glass_zh?: string;
+  category_zh?:string;
 
   // 元數據
   scraped_at?: string;

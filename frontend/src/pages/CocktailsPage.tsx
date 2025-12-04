@@ -521,9 +521,11 @@ const CocktailsPage = () => {
 
                 {/* 分類與難度 */}
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded">
-                    {cocktail.category}
-                  </span>
+                <span className="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded">
+                  {langZh && cocktail.category_zh
+                    ? cocktail.category_zh
+                    : cocktail.category}
+                </span>
                   {cocktail.difficulty && (
                     <span
                       className={`text-xs px-2 py-1 rounded ${
@@ -749,9 +751,11 @@ const CocktailsPage = () => {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2 items-start justify-end">
-                  <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
-                    {selectedCocktail.category}
-                  </span>
+                <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
+                  {langZh && selectedCocktail.category_zh
+                    ? selectedCocktail.category_zh
+                    : selectedCocktail.category}
+                </span>
                   {selectedCocktail.difficulty && (
                     <span
                       className={`px-3 py-1 rounded-full text-sm font-medium ${

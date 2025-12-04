@@ -150,21 +150,37 @@ class DiffordsGuideImporter:
         return all_tags, tags_dict
 
     def transform_cocktail(self, data):
-        """轉換單一調酒資料以符合 schema"""
         transformed = data.copy()
 
-        # 推斷分類、難度
-        transformed['category'] = self.infer_category(data)
-        transformed['difficulty'] = self.infer_difficulty(data)
+        # --- 安全處理 glass，優先抓 links[0].text ---
+        glass = data.get("glass")
+        glass_name = None   # 給對照表和系統用的杯具英文名
 
-        # 使用完整 Tag 生成系統
+        if isinstance(glass, dict):
+            links = glass.get("links") or []
+            if links and isinstance(links[0], dict):
+                txt = (links[0].get("text") or "").strip()
+                if txt:
+                    glass_name = txt
+
+        # 寫回：只留下 links[0].text
+        if glass_name:
+            transformed["glass"] = glass_name
+        else:
+            # 沒有 links[0].text 的就乾脆不要 glass 欄位
+            transformed.pop("glass", None)
+
+        # 下面維持原本邏輯（category / difficulty / tags）
+        transformed["category"] = self.infer_category(data)
+        transformed["difficulty"] = self.infer_difficulty(data)
         tags, tags_categorized = self.generate_tags(data)
-        transformed['tags'] = tags
-        transformed['tags_categorized'] = tags_categorized
-
-        # more_categories 自動保留（已在 data 中）
+        transformed["tags"] = tags
+        transformed["tags_categorized"] = tags_categorized
 
         return transformed
+
+
+
 
     def import_file(self, filepath):
         """匯入單一 JSON 檔案"""

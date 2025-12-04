@@ -168,7 +168,7 @@ class Cocktail:
             },
 
             # 杯具資訊
-            'glass': data.get('glass', {}).get('text') if data.get('glass') else None,
+            'glass': data.get('glass') or None,
 
             # 歷史與故事
             'history': data.get('history', {}).get('paragraphs', []) if data.get('history') else [],

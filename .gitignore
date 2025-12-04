@@ -72,3 +72,8 @@ yarn-error.log*
 
 # Claude
 .claude/
+
+#中英對照表用工具
+/scripts/check.py
+/scripts/clear.py
+/scripts/trans_item.py

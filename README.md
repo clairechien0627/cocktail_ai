@@ -118,7 +118,11 @@ FLASK_DEBUG=True
 > https://drive.google.com/file/d/1BtOo_I3SJBxPb3CL7r3219cQ8Hs21wWi/view?usp=sharing
 
 請將含中文翻譯資料放在`data/diffordsguide_trans/` 目錄下
-> 
+> https://drive.google.com/file/d/18yI-BZJb8UubBKvj7bBCKpI8TkhpS-Bt/view?usp=sharing
+
+請將中英對照表放在`data/trans_table/` 目錄下
+> https://drive.google.com/file/d/1_kiZJ5dOQ5eT0YAi9C38kHA8xnYUTEK6/view?usp=sharing
+
 
 ```bash
 # 檢查資料目錄
@@ -127,6 +131,8 @@ dir data\diffordsguide\  # Windows
 
 # 導入調酒資料到 MongoDB
 python scripts/import_diffordsguide.py
+python scripts/import_diffordsguide_zh.py
+python scripts/import_trans_table.py
 ```
 
 你應該會看到：

@@ -13,6 +13,16 @@ OUTPUT_DIR = os.getenv("OUTPUT_DIR", DIFFORDS_DIR)
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")  # 可從環境或寫死字串
 LOCATION = "global"
 
+ING_DICT_PATH = "C:/Users/winni/OneDrive/桌面/計算機網路/cocktail_ai/scripts/ingredients_translated_clean.json"
+
+try:
+    with open(ING_DICT_PATH, "r", encoding="utf-8") as f:
+        INGREDIENT_DICT = json.load(f)
+    print(f"載入材料對照表，共 {len(INGREDIENT_DICT)} 筆")
+except FileNotFoundError:
+    INGREDIENT_DICT = {}
+    print("⚠️ 找不到 ingredients_translated_clean.json，將只用 Google Translate")
+
 client = translate.TranslationServiceClient()
 
 BATCH_SIZE = 50
@@ -47,18 +57,14 @@ def build_zh_fields(data: Dict[str, Any]) -> Dict[str, Any]:
     # 1) 酒名：若已經有 name_zh，就用原本的，否則才翻
     name_zh = data.get("name_zh") or translate_text(name)
 
-    # 2) 材料列表：若已經有 ingredients_zh，就沿用
-    ingredients = data.get("ingredients", [])
-    ingredients_zh = data.get("ingredients_zh") or translate_list(ingredients)
-
     # 3) review / history / more_categories 同樣邏輯
     review = data.get("review", [])
     history_paras = (data.get("history") or {}).get("paragraphs", [])
-    more_categories = data.get("more_categories", [])
+
 
     review_zh = data.get("review_zh") or translate_list(review)
     history_zh = data.get("history_zh") or translate_list(history_paras)
-    more_categories_zh = data.get("more_categories_zh") or translate_list(more_categories)
+
 
     # 4) method_sections：若已經有 method_sections_zh 就用舊的，沒有才用英文去翻
     method_sections_zh = data.get("method_sections_zh") or []
@@ -72,59 +78,17 @@ def build_zh_fields(data: Dict[str, Any]) -> Dict[str, Any]:
                 "steps_zh": translate_list(steps),
             })
 
-    # 5) 杯具
-    glass_zh = data.get("glass_zh")
-    glass = data.get("glass")
-
-    def extract_glass_name(glass_obj):
-        if isinstance(glass_obj, dict):
-            links = glass_obj.get("links") or []
-            if links and isinstance(links, list) and links[0].get("text"):
-                return links[0]["text"]
-            return glass_obj.get("text", "")
-        return glass_obj or ""
-
-    # 沒有或空字串時才翻譯
-    if not glass_zh:
-        glass_raw_text = extract_glass_name(glass)
-        glass_zh = translate_text(glass_raw_text) if glass_raw_text else ""
-
-    # 6) 過敏原
-    allergens = data.get("allergens") or []
-    existing_allergens_zh = data.get("allergens_zh")
-
-    # 6-1) 只有「完全沒有欄位」時才批次翻譯 item
-    if existing_allergens_zh is None:
-        item_texts = [a.get("item", "") for a in allergens if a.get("item")]
-        allergens_zh = translate_list(item_texts) if item_texts else []
-    else:
-        allergens_zh = existing_allergens_zh
-
-    # 6-2) 逐筆補 item_zh / allergen_zh（只補缺的）
-    for idx, a in enumerate(allergens):
-        if not a.get("item_zh"):
-            if existing_allergens_zh is not None and idx < len(existing_allergens_zh):
-                a["item_zh"] = existing_allergens_zh[idx]
-            elif idx < len(allergens_zh):
-                a["item_zh"] = allergens_zh[idx]
-            elif a.get("item"):
-                a["item_zh"] = translate_text(a["item"])
-
-        if a.get("allergen") and not a.get("allergen_zh"):
-            a["allergen_zh"] = translate_text(a["allergen"])
 
     return {
         "name_en": name_en,
         "name_zh": name_zh,
-        "ingredients_zh": ingredients_zh,
         "review_zh": review_zh,
         "history_zh": history_zh,
         "method_sections_zh": method_sections_zh,
-        "more_categories_zh": more_categories_zh,
-        "glass_zh": glass_zh,
-        "allergens_zh": allergens_zh,  # 保留原本簡單陣列
-        "allergens": allergens,        # 內含 item_zh / allergen_zh
     }
+
+
+
 
 
 
@@ -157,7 +121,6 @@ def main():
                 print(f"     ❌ 翻譯失敗，先用空欄位：{e}")
                 zh_fields = {
                     "name_zh": "",
-                    "ingredients_zh": [],
                     "review_zh": [],
                     "history_zh": [],
                     "method_sections_zh": [],
@@ -167,12 +130,26 @@ def main():
             merged = dict(data)
             merged.update(zh_fields)
 
+            # 只保留中文欄位與你想要留下的基礎欄位
+            fields_to_keep = {
+                "_id",
+                "cocktail_id",
+                "slug",
+                "name_en",
+                "name_zh",
+                "review_zh",
+                "history_zh",
+                "method_sections_zh",
+            }
+
+            merged = {k: v for k, v in merged.items() if k in fields_to_keep}
+
             base, ext = os.path.splitext(filename)
             out_name = f"{base}{ext}"
             out_path = os.path.join(OUTPUT_DIR, out_name)
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(merged, f, ensure_ascii=False, indent=2)
-            print(f"     ✅ 已輸出 {out_name}")
+
 
         print(f"本批完成，休息 {SLEEP_SEC} 秒...\n")
         time.sleep(SLEEP_SEC)
