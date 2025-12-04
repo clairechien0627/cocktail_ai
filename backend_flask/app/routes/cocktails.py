@@ -177,8 +177,8 @@ def get_all_cocktails():
 
 
 
-# 詳情 API：注意路由一定要是 "/cktail_id>"
-@cocktails_bp.route("/cktail_id>", methods=["GET", "OPTIONS"])
+# 詳情 API：注意路由一定要是 "/<cocktail_id>"
+@cocktails_bp.route("/<cocktail_id>", methods=["GET", "OPTIONS"])
 def get_cocktail(cocktail_id):
     if request.method == "OPTIONS":
         return "", 200
@@ -187,7 +187,16 @@ def get_cocktail(cocktail_id):
         from flask import current_app
         db = current_app.config["DB"]
 
-        doc = db.cocktails.find_one({"_id": ObjectId(cocktail_id)})
+        # 先嘗試用 slug (cocktail_id) 查詢
+        doc = db.cocktails.find_one({"cocktail_id": cocktail_id})
+
+        # 如果找不到，再嘗試用 ObjectId 查詢（向後相容）
+        if not doc:
+            try:
+                doc = db.cocktails.find_one({"_id": ObjectId(cocktail_id)})
+            except:
+                pass
+
         if not doc:
             return jsonify({"error": "調酒不存在"}), 404
 
@@ -200,7 +209,7 @@ def get_cocktail(cocktail_id):
 
 
 
-@cocktails_bp.route("/category/ategory>", methods=["GET"])
+@cocktails_bp.route("/category/<category>", methods=["GET"])
 def get_cocktails_by_category(category):
     """根據分類取得調酒"""
     try:

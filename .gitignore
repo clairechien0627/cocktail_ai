@@ -31,6 +31,9 @@ analyze_filter_coverage.py
 diffords_filter_report.md
 filter_analysis_and_recommendations.md
 *.json
+!package.json
+!package-lock.json
+!tsconfig.json
 
 # Virtual Environment
 venv/
@@ -59,13 +62,13 @@ Thumbs.db
 *.db
 *.sqlite
 
-# Frontend (如果之後加入)
-node_modules/
-/frontend/build
-/frontend/.env.local
-/frontend/.env.development.local
-/frontend/.env.test.local
-/frontend/.env.production.local
+# Frontend
+frontend/node_modules/
+frontend/build/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -73,7 +76,16 @@ yarn-error.log*
 # Claude
 .claude/
 
-#中英對照表用工具
-/scripts/check.py
-/scripts/clear.py
-/scripts/trans_item.py
+# 中英對照表用工具
+scripts/check.py
+scripts/clear.py
+scripts/trans_item.py
+
+# Scripts cache
+scripts/__pycache__/
+scripts/analysis/
+
+# Backend specific (in backend_flask/)
+backend_flask/data/
+backend_flask/__pycache__/
+backend_flask/venv/

@@ -297,7 +297,24 @@ def check_drunk(cocktail_id):
         user_id = get_jwt_identity()
         db = current_app.config['DB']
 
-        has_drunk = DrinkingRecord.check_if_drunk(db, user_id, cocktail_id)
+        # 先查詢調酒取得 ObjectId（支援 slug 或 ObjectId）
+        cocktail = None
+
+        # 嘗試用 slug 查詢
+        cocktail = db.cocktails.find_one({"cocktail_id": cocktail_id})
+
+        # 如果找不到，嘗試用 ObjectId 查詢
+        if not cocktail:
+            try:
+                cocktail = db.cocktails.find_one({"_id": ObjectId(cocktail_id)})
+            except:
+                pass
+
+        if not cocktail:
+            return jsonify({'has_drunk': False}), 200  # 調酒不存在，視為未喝過
+
+        # 使用調酒的 _id 檢查
+        has_drunk = DrinkingRecord.check_if_drunk(db, user_id, str(cocktail['_id']))
 
         return jsonify({'has_drunk': has_drunk}), 200
 
@@ -313,7 +330,19 @@ def get_cocktail_records(cocktail_id):
         user_id = get_jwt_identity()
         db = current_app.config['DB']
 
-        records = DrinkingRecord.get_cocktail_records(db, user_id, cocktail_id)
+        # 先查詢調酒取得 ObjectId（支援 slug 或 ObjectId）
+        cocktail = db.cocktails.find_one({"cocktail_id": cocktail_id})
+        if not cocktail:
+            try:
+                cocktail = db.cocktails.find_one({"_id": ObjectId(cocktail_id)})
+            except:
+                pass
+
+        if not cocktail:
+            return jsonify({'records': [], 'count': 0}), 200  # 調酒不存在
+
+        # 使用調酒的 _id 查詢紀錄
+        records = DrinkingRecord.get_cocktail_records(db, user_id, str(cocktail['_id']))
 
         # 轉換 ObjectId 為字串
         for record in records:

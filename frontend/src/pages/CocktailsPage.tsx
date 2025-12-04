@@ -11,7 +11,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Star,
-  Filter,
   SlidersHorizontal,
   Flame,
   Droplet,
