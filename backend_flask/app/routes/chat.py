@@ -83,7 +83,8 @@ def send_message():
     Request Body:
         {
             "message": "用戶訊息",
-            "conversation_id": "對話ID（可選）"
+            "conversation_id": "對話ID（可選）",
+            "personality": "性格ID（可選，預設為用戶偏好或 friendly）"
         }
     
     Response:
@@ -113,8 +114,17 @@ def send_message():
         
         user_message = data['message']
         conversation_id = data.get('conversation_id')
-        
+        personality = data.get('personality')  # 新增：性格參數
+
         db = current_app.config['DB']
+
+        # 如果沒有指定性格，從用戶偏好中讀取（新增）
+        if not personality:
+            user_doc = db.users.find_one({'_id': ObjectId(user_id)})
+            if user_doc and 'preferences' in user_doc and 'personality' in user_doc['preferences']:
+                personality = user_doc['preferences']['personality']
+            else:
+                personality = 'friendly'  # 預設友善性格
         
         # 如果沒有提供 conversation_id，建立新對話
         if not conversation_id:
@@ -145,6 +155,7 @@ def send_message():
             'user_message': user_message,
             'conversation_id': str(conversation_id),
             'user_id': str(user_id),
+            'personality': personality,  # 新增：性格參數
             'current_query': conv_manager.context.get('current_query', {}),
             'recommended_cocktails': conv_manager.context.get('recommended_cocktails', []),
             'last_recommendation': conv_manager.context.get('last_recommendation', {}),

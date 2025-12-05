@@ -9,6 +9,22 @@ export interface User {
 export interface UserPreferences {
   favorite_spirits: string[];
   skill_level: 'beginner' | 'intermediate' | 'expert';
+  personality?: string;  // 酒保性格 ID（新增）
+}
+
+// 性格類型（新增）
+export interface Personality {
+  personality_id: string;
+  name: string;
+  description: string;
+  icon: string;
+  type: 'system' | 'custom';
+  is_public?: boolean;
+}
+
+export interface PersonalitiesResponse {
+  system: Personality[];
+  custom: Personality[];
 }
 
 // 調酒類型（完整 Difford's Guide schema）

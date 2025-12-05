@@ -112,11 +112,13 @@ def create_app(config_class=Config):
     from app.routes.cocktails import cocktails_bp
     from app.routes.chat import chat_bp
     from app.routes.drinking_records import records_bp
+    from app.routes.personalities import personalities_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(cocktails_bp)
     app.register_blueprint(records_bp)
+    app.register_blueprint(personalities_bp)
 
     app.logger.info("✓ 所有路由已註冊")
 

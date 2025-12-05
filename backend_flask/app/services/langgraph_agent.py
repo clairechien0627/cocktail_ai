@@ -28,12 +28,13 @@ class BartenderState(TypedDict):
     user_message: str
     conversation_id: str
     user_id: str
-    
+    personality: str  # 性格 ID（新增）
+
     # 上下文（多輪對話）
     current_query: dict  # 當前查詢參數（累積）
     recommended_cocktails: List[str]  # 已推薦的調酒
     last_recommendation: dict  # 最後一次推薦
-    
+
     # 輸出
     response: str
     tool_calls: List
@@ -141,33 +142,47 @@ def get_llm(provider: str = None):
 def call_model(state: BartenderState, config: RunnableConfig):
     """
     Agent 節點：呼叫 LLM
-    
+
     訊息已經是 LangChain Message 物件，直接使用即可
     """
     # 獲取 LLM 和工具
     llm = get_llm()
     from app.services.tools import ALL_TOOLS
     llm_with_tools = llm.bind_tools(ALL_TOOLS)
-    
-    # 建立 System Message（注入上下文）
-    system_message = SystemMessage(content=BARTENDER_SYSTEM_PROMPT.format(
+
+    # 載入性格 Prompt（新增）
+    personality_id = state.get('personality', 'friendly')  # 預設友善性格
+    user_id = state.get('user_id')
+
+    from app.services.personality_manager import PersonalityManager
+    from flask import current_app
+    db = current_app.config.get('DB') if current_app else None
+
+    personality_manager = PersonalityManager(db)
+    personality_prompt = personality_manager.load_personality(personality_id, user_id)
+
+    # 格式化 Prompt（注入對話上下文）
+    system_content = personality_prompt.format(
         recommended_cocktails=state.get('recommended_cocktails', []),
         current_query=state.get('current_query', {}),
         last_recommendation=state.get('last_recommendation', {}).get('name', 'None')
-    ))
-    
+    )
+
+    # 建立 System Message
+    system_message = SystemMessage(content=system_content)
+
     # 獲取訊息（已經是 Message 物件）
     state_messages = state.get('messages', [])
-    
+
     # 建立最終訊息列表
     messages = [system_message] + state_messages
-    
+
     # 呼叫 LLM
     response = llm_with_tools.invoke(messages, config)
-    
+
     # 簡化的 Debug
-    print(f"[Agent] 訊息: {len(messages)}, 工具: {len(response.tool_calls) if hasattr(response, 'tool_calls') and response.tool_calls else 0}")
-    
+    print(f"[Agent] 性格: {personality_id}, 訊息: {len(messages)}, 工具: {len(response.tool_calls) if hasattr(response, 'tool_calls') and response.tool_calls else 0}")
+
     return {'messages': [response]}
 
 

@@ -15,6 +15,8 @@ import type {
   DrinkingStats,
   UserPreferencesAnalysis,
   RecommendationsResponse,
+  PersonalitiesResponse,
+  Personality,
 } from '../types';
 
 // API 基礎 URL
@@ -94,10 +96,11 @@ export const authAPI = {
 
 export const chatAPI = {
   // 發送訊息
-  sendMessage: async (message: string, conversationId?: string): Promise<ChatResponse> => {
+  sendMessage: async (message: string, conversationId?: string, personality?: string): Promise<ChatResponse> => {
     const response = await api.post<ChatResponse>('/api/chat/message', {
       message,
       conversation_id: conversationId,
+      personality,  // 新增：性格參數
     });
     return response.data;
   },
@@ -292,6 +295,69 @@ export const recordsAPI = {
   // 取得預設心情標籤選項
   getMoodTags: async (): Promise<{ mood_tags: string[] }> => {
     const response = await api.get<{ mood_tags: string[] }>('/api/records/mood-tags');
+    return response.data;
+  },
+};
+
+// ==================== 性格 API（新增）====================
+
+export const personalitiesAPI = {
+  // 取得所有性格列表
+  getPersonalities: async (): Promise<PersonalitiesResponse> => {
+    const response = await api.get<PersonalitiesResponse>('/api/personalities/list');
+    return response.data;
+  },
+
+  // 取得特定性格詳情
+  getPersonality: async (personalityId: string): Promise<Personality> => {
+    const response = await api.get<Personality>(`/api/personalities/${personalityId}`);
+    return response.data;
+  },
+
+  // 創建自訂性格
+  createPersonality: async (data: {
+    name: string;
+    description: string;
+    icon: string;
+    prompt: {
+      tone: string;
+      style: string;
+      greeting: string;
+      example_responses?: string[];
+      custom_rules?: string[];
+    };
+    is_public?: boolean;
+  }): Promise<{ message: string; personality_id: string }> => {
+    const response = await api.post<{ message: string; personality_id: string }>(
+      '/api/personalities/create',
+      data
+    );
+    return response.data;
+  },
+
+  // 更新自訂性格
+  updatePersonality: async (
+    personalityId: string,
+    data: Partial<{
+      name: string;
+      description: string;
+      icon: string;
+      prompt: any;
+      is_public: boolean;
+    }>
+  ): Promise<{ message: string }> => {
+    const response = await api.put<{ message: string }>(
+      `/api/personalities/${personalityId}`,
+      data
+    );
+    return response.data;
+  },
+
+  // 刪除自訂性格
+  deletePersonality: async (personalityId: string): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(
+      `/api/personalities/${personalityId}`
+    );
     return response.data;
   },
 };

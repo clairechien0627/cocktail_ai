@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { chatAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { Send, Bot, User as UserIcon, AlertCircle, Menu, Plus, MessageCircle, X, Trash2 } from 'lucide-react';
 import type { Message, Conversation } from '../types';
 
 
 const ChatPage = () => {
+  const { user } = useAuth();  // 新增：獲取用戶資訊
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -128,8 +130,12 @@ const ChatPage = () => {
 
 
     try {
-      // 呼叫 API
-      const response = await chatAPI.sendMessage(userMessage, conversationId || undefined);
+      // 呼叫 API（新增：傳遞用戶偏好的性格）
+      const response = await chatAPI.sendMessage(
+        userMessage,
+        conversationId || undefined,
+        user?.preferences.personality || 'friendly'
+      );
 
 
       // 儲存 conversation ID

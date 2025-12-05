@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { authAPI, chatAPI } from '../services/api';
 import { User, Settings, MessageCircle, Save } from 'lucide-react';
 import type { Conversation } from '../types';
+import PersonalitySelector from '../components/PersonalitySelector';
 
 const ProfilePage = () => {
   const { user, updateUser } = useAuth();
@@ -10,6 +11,7 @@ const ProfilePage = () => {
   const [favoriteSpirits, setFavoriteSpirits] = useState<string[]>(
     user?.preferences.favorite_spirits || []
   );
+  const [personality, setPersonality] = useState(user?.preferences.personality || 'friendly');  // 新增
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -39,6 +41,7 @@ const ProfilePage = () => {
       await authAPI.updatePreferences({
         skill_level: skillLevel,
         favorite_spirits: favoriteSpirits,
+        personality: personality,  // 新增
       });
 
       // 更新本地用戶狀態
@@ -48,6 +51,7 @@ const ProfilePage = () => {
           preferences: {
             skill_level: skillLevel,
             favorite_spirits: favoriteSpirits,
+            personality: personality,  // 新增
           },
         });
       }
@@ -119,18 +123,10 @@ const ProfilePage = () => {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">調酒技能等級</label>
-              <select
-                value={skillLevel}
-                onChange={(e) =>
-                  setSkillLevel(e.target.value as 'beginner' | 'intermediate' | 'expert')
-                }
-                className="input-field"
-              >
-                <option value="beginner">初學者</option>
-                <option value="intermediate">中級</option>
-                <option value="expert">專家</option>
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                AI 酒保性格
+              </label>
+              <PersonalitySelector value={personality} onChange={setPersonality} />
             </div>
 
             <div>
