@@ -7,8 +7,13 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Conversation, User
 from app.services.sentiment import analyze_sentiment, should_warn_about_drinking
-from app.services.langgraph_agent import get_graph
+from app.services.langgraph_agent import (
+    get_graph,
+    extract_cocktails_data_from_result,
+    extract_cocktails_from_ai_message
+)
 from app.services.conversation_manager import ConversationManager
+from bson.objectid import ObjectId
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/api/chat')
 
@@ -209,21 +214,106 @@ def send_message():
         
         # ============== 責任飲酒警告 ==============
         needs_warning = should_warn_about_drinking(user_message, sentiment_score)
-        
+
         if needs_warning and '責任飲酒' not in ai_response:
             ai_response += "\n\n💡 小提醒：請記得理性飲酒，過量飲酒有害健康。如果您要開車或有其他不適合飲酒的情況，我也可以推薦美味的無酒精飲料喔！"
-        
-        # 儲存 AI 回應
-        conv_manager.save_message('assistant', ai_response)
-        
-        current_app.logger.info(f"✓ 對話完成 (ID: {conversation_id}, 工具使用: {tool_used})")
-        
+
+        # ============== 提取調酒資料（新增） ==============
+        cocktails = []
+
+        # 優先使用 LLM 輸出提取調酒（更準確）
+        cocktails_data = extract_cocktails_from_ai_message(result, db)
+
+        # 如果 LLM 沒有明確提到調酒，回退到 RAG 結果
+        if not cocktails_data:
+            current_app.logger.info(f"[Chat] LLM 輸出中未找到調酒，使用 RAG 結果作為回退")
+            cocktails_data = extract_cocktails_data_from_result(result)
+            extraction_method = "RAG"
+        else:
+            extraction_method = "LLM"
+
+        current_app.logger.info(f"[Chat] 使用 {extraction_method} 提取到 {len(cocktails_data)} 個調酒資料")
+
+        if cocktails_data:
+            # 從 MongoDB 查詢調酒資料（精簡版本，只包含卡片需要的欄位）
+            for cocktail_info in cocktails_data[:5]:  # 最多返回 5 個調酒
+                try:
+                    cocktail = None
+                    search_id = cocktail_info.get('id')
+                    search_name = cocktail_info.get('name')
+
+                    current_app.logger.debug(f"[Chat] 嘗試查詢: id={search_id}, name={search_name}")
+
+                    # 方法 1: 使用 ID 查詢（ObjectId）
+                    if search_id:
+                        try:
+                            cocktail = db.cocktails.find_one(
+                                {'_id': ObjectId(search_id)},
+                                {
+                                    '_id': 1, 'name': 1, 'name_zh': 1, 'image_url': 1,
+                                    'ratings': 1, 'taste_profile': 1, 'difficulty': 1,
+                                    'ingredients': 1, 'category': 1, 'category_zh': 1,
+                                    'tags_categorized': 1
+                                }
+                            )
+                        except:
+                            pass
+
+                    # 方法 2: 使用 ID 查詢（字串）
+                    if not cocktail and search_id:
+                        cocktail = db.cocktails.find_one(
+                            {'_id': search_id},
+                            {
+                                '_id': 1, 'name': 1, 'name_zh': 1, 'image_url': 1,
+                                'ratings': 1, 'taste_profile': 1, 'difficulty': 1,
+                                'ingredients': 1, 'category': 1, 'category_zh': 1,
+                                'tags_categorized': 1
+                            }
+                        )
+
+                    # 方法 3: 使用調酒名稱查詢（最可靠）
+                    if not cocktail and search_name:
+                        cocktail = db.cocktails.find_one(
+                            {'name': search_name},
+                            {
+                                '_id': 1, 'name': 1, 'name_zh': 1, 'image_url': 1,
+                                'ratings': 1, 'taste_profile': 1, 'difficulty': 1,
+                                'ingredients': 1, 'category': 1, 'category_zh': 1,
+                                'tags_categorized': 1
+                            }
+                        )
+
+                    if cocktail:
+                        # 轉換 ObjectId 為字串
+                        cocktail['_id'] = str(cocktail['_id'])
+                        # 計算材料數量
+                        cocktail['ingredients_count'] = len(cocktail.get('ingredients', []))
+                        cocktails.append(cocktail)
+                        current_app.logger.debug(f"[Chat] ✓ 成功查詢調酒: {cocktail.get('name_zh') or cocktail.get('name')}")
+                    else:
+                        current_app.logger.warning(f"[Chat] ✗ 調酒不存在於資料庫: id={search_id}, name={search_name}")
+                except Exception as e:
+                    current_app.logger.error(f"[Chat] ✗ 查詢調酒失敗: {str(e)}")
+                    import traceback
+                    current_app.logger.debug(traceback.format_exc())
+                    continue
+
+        current_app.logger.info(f"[Chat] ✓ 對話完成 (ID: {conversation_id}, 工具使用: {tool_used}, 調酒數量: {len(cocktails)})")
+        if cocktails:
+            cocktail_names = [c.get('name_zh') or c.get('name') for c in cocktails]
+            current_app.logger.info(f"[Chat] 返回的調酒: {cocktail_names}")
+
+        # ============== 儲存 AI 回應 ==============
+        # 儲存 AI 回應（包含調酒推薦資料）
+        conv_manager.save_message('assistant', ai_response, cocktails=cocktails if cocktails else None)
+
         return jsonify({
             'conversation_id': str(conversation_id),
             'message': ai_response,
             'sentiment': sentiment_score,
             'warning_issued': needs_warning,
             'tool_used': tool_used,
+            'cocktails': cocktails,  # 新增：調酒卡片資料
             'mode': 'langgraph',
             'langsmith_traced': current_app.config.get('LANGCHAIN_TRACING_V2') == 'true'
         }), 200

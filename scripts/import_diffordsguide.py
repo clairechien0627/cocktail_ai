@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 # 加入專案根目錄到 Python 路徑
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.models import Cocktail
+from backend_flask.app.models import Cocktail
 from scripts.generate_tags import CocktailTagGenerator
 
 

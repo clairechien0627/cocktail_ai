@@ -10,7 +10,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from pymongo import MongoClient
-from app.config import Config
+from .config import Config
 
 
 def create_app(config_class=Config):
@@ -85,7 +85,7 @@ def create_app(config_class=Config):
             
             # 初始化 RAG 服務（可選，如果沒有 Qdrant 會靜默失敗）
             try:
-                from app.services.rag_service import rag_service
+                from .services.rag_service import rag_service
                 rag_service.initialize(
                     qdrant_host=app.config['QDRANT_HOST'],
                     qdrant_port=app.config['QDRANT_PORT'],
@@ -98,7 +98,7 @@ def create_app(config_class=Config):
                 app.logger.info(f"ℹ RAG 服務未啟用（可選功能）: {str(e)}")
             
             # 初始化 LangGraph（必須）
-            from app.services.langgraph_agent import initialize_graph
+            from .services.langgraph_agent import initialize_graph
             with app.app_context():
                 initialize_graph()
             
@@ -108,19 +108,30 @@ def create_app(config_class=Config):
             app.config['RAG_ENABLED'] = False
 
     # ========== 註冊藍圖（路由）==========
-    from app.routes.auth import auth_bp
-    from app.routes.cocktails import cocktails_bp
-    from app.routes.chat import chat_bp
-    from app.routes.drinking_records import records_bp
-    from app.routes.personalities import personalities_bp
+    from .routes.auth import auth_bp
+    from .routes.cocktails import cocktails_bp
+    from .routes.chat import chat_bp
+    from .routes.drinking_records import records_bp
+    from .routes.personalities import personalities_bp
+    from .routes.favorites import favorites_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(cocktails_bp)
     app.register_blueprint(records_bp)
     app.register_blueprint(personalities_bp)
+    app.register_blueprint(favorites_bp)
 
     app.logger.info("✓ 所有路由已註冊")
+
+    # ========== 創建數據庫索引 ==========
+    try:
+        # 收藏集合索引
+        db.favorites.create_index([('user_id', 1), ('cocktail_id', 1)], unique=True)
+        db.favorites.create_index([('user_id', 1), ('created_at', -1)])
+        app.logger.info("✓ 數據庫索引已創建")
+    except Exception as e:
+        app.logger.warning(f"⚠ 創建索引時發生警告: {str(e)}")
 
     # ========== 健康檢查路由 ==========
     @app.route('/health')

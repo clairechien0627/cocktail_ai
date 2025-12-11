@@ -67,7 +67,7 @@ export const TAG_SUBCATEGORIES: TagSubcategories = {
     {
       key: 'herbal-spicy',
       label: '草本辛香',
-      tags: ['herbal', 'floral', 'minty', 'bittersweet', 'spicy'],
+      tags: ['herbal', 'floral', 'minty', 'bittersweet', 'spicy', 'savory'],
       bgColor: 'bg-gray-50',
       textColor: 'text-gray-700',
       borderColor: 'border-gray-200',
@@ -98,7 +98,7 @@ export const TAG_SUBCATEGORIES: TagSubcategories = {
     {
       key: 'alcoholic-beverages',
       label: '酒類',
-      tags: ['beer', 'vermouth', 'sparkling-wine', 'white-wine', 'red-wine', 'port', 'campari'],
+      tags: ['beer', 'vermouth', 'sparkling-wine', 'champagne', 'white-wine', 'red-wine', 'port', 'campari'],
       bgColor: 'bg-gray-50',
       textColor: 'text-gray-700',
       borderColor: 'border-gray-200',
@@ -121,7 +121,7 @@ export const TAG_SUBCATEGORIES: TagSubcategories = {
       label: '其他材料',
       tags: [
         'soda-water', 'egg-white', 'chartreuse', 'amaretto', 'tonic-water', 'coffee-liqueur',
-        'cherry-brandy', 'elderflower', 'raspberry', 'fresh-mint', 'basil'
+        'cherry-brandy', 'elderflower', 'raspberry', 'fresh-mint', 'basil', 'ice-cream'
       ],
       bgColor: 'bg-gray-50',
       textColor: 'text-gray-700',

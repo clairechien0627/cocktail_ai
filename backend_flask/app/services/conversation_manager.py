@@ -65,24 +65,29 @@ class ConversationManager:
     
     # ========== 訊息管理 ==========
     
-    def save_message(self, role: str, content: str, sentiment_score: float = None):
+    def save_message(self, role: str, content: str, sentiment_score: float = None, cocktails: list = None):
         """
         儲存訊息
-        
+
         Args:
             role: 'user', 'assistant', 'system', 'tool'
             content: 訊息內容
             sentiment_score: 情感分數（可選）
+            cocktails: 推薦的調酒資料（可選）
         """
         message = {
             'role': role,
             'content': content,
             'timestamp': datetime.utcnow()
         }
-        
+
         if sentiment_score is not None:
             message['sentiment_score'] = sentiment_score
-        
+
+        # 新增：如果有調酒推薦資料，則加入訊息中
+        if cocktails is not None:
+            message['cocktails'] = cocktails
+
         # MongoDB 模式
         if self.db is not None and self.conversation_id is not None:
             self.db.conversations.update_one(

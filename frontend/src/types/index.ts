@@ -196,12 +196,29 @@ export interface TagsResponse {
   };
 }
 
+// 精簡版調酒資料（用於卡片顯示）
+export interface CocktailCardData {
+  _id: string;
+  name: string;
+  name_zh?: string;
+  image_url?: string;
+  ratings?: Ratings;
+  taste_profile?: TasteProfile;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  ingredients?: string[];
+  ingredients_count?: number;
+  category?: string;
+  category_zh?: string;
+  tags_categorized?: TagsCategorized;  // 添加分類 tags
+}
+
 // 對話類型
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
   sentiment?: number;
   timestamp?: string;
+  cocktails?: CocktailCardData[];  // 新增：調酒卡片資料
 }
 
 export interface Conversation {
@@ -224,6 +241,7 @@ export interface ChatResponse {
   message: string;
   sentiment: number;
   warning_issued?: boolean;
+  cocktails?: CocktailCardData[];  // 新增：調酒卡片資料
 }
 
 export interface CocktailsResponse {
@@ -347,4 +365,28 @@ export interface UserPreferencesAnalysis {
 export interface RecommendationsResponse {
   recommendations: Cocktail[];
   count: number;
+}
+
+// 收藏類型
+export interface FavoriteItem {
+  _id: string;
+  name: string;
+  name_zh?: string;
+  image_url?: string;
+  ratings?: Ratings;
+  taste_profile?: TasteProfile;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  ingredients?: string[];
+  ingredients_count?: number;
+  category?: string;
+  category_zh?: string;
+  created_at?: string;  // 收藏時間
+}
+
+export interface FavoritesResponse {
+  favorites: FavoriteItem[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
 }

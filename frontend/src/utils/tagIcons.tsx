@@ -65,6 +65,7 @@ const FLAVOR_ICONS: { [key: string]: IconType } = {
   'chocolate': Coffee,
   'coffee': Coffee,
   'vanilla': Sparkles,
+  'savory': Droplet,
 };
 
 // ==================== 材料圖標映射 ====================
@@ -111,6 +112,8 @@ const INGREDIENT_ICONS: { [key: string]: IconType } = {
   'amaretto': Coffee,
   'tonic-water': Droplet,
   'coffee-liqueur': Coffee,
+  'ice-cream': Sparkles,
+  'champagne': Sparkles,
 };
 
 // ==================== 風格圖標映射 ====================
@@ -162,7 +165,7 @@ const STYLE_ICONS: { [key: string]: IconType } = {
  * @param dimension - 維度名稱
  * @returns 圖標組件
  */
-const getIcon = (
+export const getIcon = (
   tag: string,
   dimension: 'base_spirits' | 'flavors' | 'ingredients' | 'styles'
 ): IconType => {

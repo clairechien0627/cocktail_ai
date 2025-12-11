@@ -28,9 +28,12 @@ merge_categories.py
 export_visualizations.py
 crawl_filter_options.py
 analyze_filter_coverage.py
+extract_names_to_csv.py
 diffords_filter_report.md
 filter_analysis_and_recommendations.md
+IMPLEMENTATION_SUMMARY.md
 *.json
+*.csv
 !package.json
 !package-lock.json
 !tsconfig.json

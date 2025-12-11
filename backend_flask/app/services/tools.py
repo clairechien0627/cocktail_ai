@@ -226,15 +226,16 @@ def filter_by_attributes(
     args_schema=SearchByTasteInput,
     description="Use AI semantic search to find cocktails based on taste descriptions. Use this when the user describes taste preferences with adjectives (e.g., 'refreshing and sour', 'strong and bitter', 'sweet and fruity', 'light and crisp'). Requires RAG service."
 )
-def search_by_taste_semantic(query: str, limit: int = 5) -> List[Dict[str, Any]]:
+def search_by_taste_semantic(query: str, limit: int = 3) -> List[Dict[str, Any]]:
     """使用 AI 語義搜尋根據口味描述找調酒。"""
     try:
         from app.services.rag_service import rag_service
-        
+
         if not rag_service.model:
             return [{'error': 'RAG 服務未初始化'}]
-        
-        results = rag_service.search_by_taste(query, limit=limit)
+
+        # 調整 limit 並提高相似度閾值以提高準確度
+        results = rag_service.search_by_taste(query, limit=limit, min_score=0.65)
         return results
         
     except Exception as e:
@@ -246,15 +247,16 @@ def search_by_taste_semantic(query: str, limit: int = 5) -> List[Dict[str, Any]]
     args_schema=SearchByScenarioInput,
     description="Use AI semantic search to find cocktails based on scenarios and occasions. Use this when the user mentions situations (e.g., 'celebration drinks', 'date night', 'party cocktails'), seasons (e.g., 'summer beach', 'winter warmth'), or contexts (e.g., 'after work drinks'). Requires RAG service."
 )
-def search_by_scenario_semantic(query: str, limit: int = 5) -> List[Dict[str, Any]]:
+def search_by_scenario_semantic(query: str, limit: int = 3) -> List[Dict[str, Any]]:
     """使用 AI 語義搜尋根據場景描述找調酒。"""
     try:
         from app.services.rag_service import rag_service
-        
+
         if not rag_service.model:
             return [{'error': 'RAG 服務未初始化'}]
-        
-        results = rag_service.search_by_scenario(query, limit=limit)
+
+        # 調整 limit 並提高相似度閾值以提高準確度
+        results = rag_service.search_by_scenario(query, limit=limit, min_score=0.65)
         return results
         
     except Exception as e:

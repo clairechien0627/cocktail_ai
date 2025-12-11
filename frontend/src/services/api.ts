@@ -17,6 +17,7 @@ import type {
   RecommendationsResponse,
   PersonalitiesResponse,
   Personality,
+  FavoritesResponse,
 } from '../types';
 
 // API 基礎 URL
@@ -357,6 +358,49 @@ export const personalitiesAPI = {
   deletePersonality: async (personalityId: string): Promise<{ message: string }> => {
     const response = await api.delete<{ message: string }>(
       `/api/personalities/${personalityId}`
+    );
+    return response.data;
+  },
+};
+
+// ==================== 收藏 API ====================
+
+export const favoritesAPI = {
+  // 添加收藏
+  add: async (cocktailId: string): Promise<{ message: string; favorite_id: string }> => {
+    const response = await api.post<{ message: string; favorite_id: string }>(
+      '/api/favorites/',
+      { cocktail_id: cocktailId }
+    );
+    return response.data;
+  },
+
+  // 取消收藏
+  remove: async (cocktailId: string): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/api/favorites/${cocktailId}`);
+    return response.data;
+  },
+
+  // 取得收藏列表（分頁）
+  getAll: async (page: number = 1, limit: number = 20): Promise<FavoritesResponse> => {
+    const response = await api.get<FavoritesResponse>('/api/favorites/', {
+      params: { page, limit },
+    });
+    return response.data;
+  },
+
+  // 檢查是否已收藏
+  check: async (cocktailId: string): Promise<{ is_favorited: boolean }> => {
+    const response = await api.get<{ is_favorited: boolean }>(
+      `/api/favorites/${cocktailId}/check`
+    );
+    return response.data;
+  },
+
+  // 取得所有收藏的調酒 ID 列表
+  getIds: async (): Promise<{ favorited_ids: string[]; count: number }> => {
+    const response = await api.get<{ favorited_ids: string[]; count: number }>(
+      '/api/favorites/ids'
     );
     return response.data;
   },

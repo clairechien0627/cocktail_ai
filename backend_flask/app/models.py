@@ -63,7 +63,7 @@ class Conversation:
         return result.inserted_id
 
     @staticmethod
-    def add_message(db, conversation_id, role, content, sentiment=None):
+    def add_message(db, conversation_id, role, content, sentiment=None, cocktails=None):
         """新增訊息到對話"""
         message = {
             'role': role,  # 'user' 或 'assistant'
@@ -71,6 +71,11 @@ class Conversation:
             'sentiment': sentiment,
             'timestamp': datetime.utcnow()
         }
+
+        # 新增：如果有調酒推薦資料，則加入訊息中
+        if cocktails is not None:
+            message['cocktails'] = cocktails
+
         db.conversations.update_one(
             {'_id': ObjectId(conversation_id)},
             {
@@ -1130,3 +1135,102 @@ class DrinkingRecord:
             'user_id': ObjectId(user_id),
             'cocktail_id': ObjectId(cocktail_id)
         }).sort('drunk_at', -1))
+
+
+class Favorite:
+    """收藏模型"""
+
+    @staticmethod
+    def add(db, user_id, cocktail_id):
+        """添加收藏"""
+        try:
+            favorite_data = {
+                'user_id': ObjectId(user_id),
+                'cocktail_id': ObjectId(cocktail_id),
+                'created_at': datetime.utcnow()
+            }
+            result = db.favorites.insert_one(favorite_data)
+            return result.inserted_id
+        except Exception as e:
+            # 如果已經存在（違反唯一索引），則忽略
+            if 'duplicate key error' in str(e).lower():
+                return None
+            raise e
+
+    @staticmethod
+    def remove(db, user_id, cocktail_id):
+        """取消收藏"""
+        result = db.favorites.delete_one({
+            'user_id': ObjectId(user_id),
+            'cocktail_id': ObjectId(cocktail_id)
+        })
+        return result.deleted_count > 0
+
+    @staticmethod
+    def find_by_user(db, user_id, page=1, limit=20):
+        """查詢用戶的收藏列表（分頁）"""
+        skip = (page - 1) * limit
+
+        # 使用聚合管道來 join cocktails 集合
+        pipeline = [
+            {'$match': {'user_id': ObjectId(user_id)}},
+            {'$sort': {'created_at': -1}},
+            {'$skip': skip},
+            {'$limit': limit},
+            {
+                '$lookup': {
+                    'from': 'cocktails',
+                    'localField': 'cocktail_id',
+                    'foreignField': '_id',
+                    'as': 'cocktail_info'
+                }
+            },
+            {'$unwind': '$cocktail_info'},
+            {
+                '$project': {
+                    '_id': '$cocktail_info._id',
+                    'name': '$cocktail_info.name',
+                    'name_zh': '$cocktail_info.name_zh',
+                    'image_url': '$cocktail_info.image_url',
+                    'ratings': '$cocktail_info.ratings',
+                    'taste_profile': '$cocktail_info.taste_profile',
+                    'difficulty': '$cocktail_info.difficulty',
+                    'ingredients': '$cocktail_info.ingredients',
+                    'category': '$cocktail_info.category',
+                    'category_zh': '$cocktail_info.category_zh',
+                    'tags_categorized': '$cocktail_info.tags_categorized',
+                    'favorited_at': '$created_at'
+                }
+            }
+        ]
+
+        favorites = list(db.favorites.aggregate(pipeline))
+
+        # 計算總數
+        total = db.favorites.count_documents({'user_id': ObjectId(user_id)})
+
+        return {
+            'favorites': favorites,
+            'total': total,
+            'page': page,
+            'limit': limit,
+            'pages': (total + limit - 1) // limit
+        }
+
+    @staticmethod
+    def check_exists(db, user_id, cocktail_id):
+        """檢查是否已收藏"""
+        exists = db.favorites.find_one({
+            'user_id': ObjectId(user_id),
+            'cocktail_id': ObjectId(cocktail_id)
+        })
+        return exists is not None
+
+    @staticmethod
+    def get_favorited_ids(db, user_id):
+        """獲取用戶所有收藏的調酒 ID 列表"""
+        favorites = db.favorites.find(
+            {'user_id': ObjectId(user_id)},
+            {'cocktail_id': 1}
+        )
+        return [str(fav['cocktail_id']) for fav in favorites]

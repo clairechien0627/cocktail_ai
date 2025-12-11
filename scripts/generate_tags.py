@@ -68,7 +68,8 @@ class CocktailTagGenerator:
                 'required_ingredients': [
                     'lime juice', 'lemon juice', 'orange juice',
                     'grapefruit juice', 'citrus', 'yuzu', 'mandarin'
-                ]
+                ],
+                'more_categories': ['Citrusy cocktails', 'Sours (citrus) cocktails']
             },
             'fruity': {
                 'keywords': [
@@ -76,42 +77,48 @@ class CocktailTagGenerator:
                     'passion fruit', 'strawberry', 'raspberry', 'blackberry',
                     'blueberry', 'watermelon', 'melon', 'apple', 'pear',
                     'banana', 'apricot', 'plum', 'cherry', 'kiwi'
-                ]
+                ],
+                'more_categories': ['Fruity (e.g. Pornstar Martini) cocktails', 'Fruitini cocktails']
             },
             'bittersweet': {
                 'required_ingredients': [
                     'campari', 'red bitter liqueur', 'aperol', 'amaro',
                     'cynar', 'fernet', 'ramazotti', 'averna', 'montenegro',
                     'bittersweet', 'bitter liqueur'
-                ]
+                ],
+                'more_categories': ['Bittersweet (e.g. Negroni) cocktails']
             },
             'creamy': {
                 'keywords': [
                     'cream', 'milk', 'coconut cream', 'irish cream',
                     'cream liqueur', 'half-and-half', 'evaporated milk',
                     'condensed milk', 'heavy cream'
-                ]
+                ],
+                'more_categories': ['Creamy (e.g. Dirty banana) cocktails']
             },
             'herbal': {
                 'keywords': [
                     'mint', 'basil', 'thyme', 'rosemary', 'absinthe',
                     'chartreuse', 'benedictine', 'bénédictine', 'herbal',
                     'sage', 'cilantro', 'coriander', 'dill', 'tarragon', 'herbal'
-                ]
+                ],
+                'more_categories': ['Herbal cocktails']
             },
             'floral': {
                 'keywords': [
                     'elderflower', 'rose', 'lavender', 'violet',
                     'hibiscus', 'chamomile', 'jasmine', 'orange blossom',
                     'cherry blossom'
-                ]
+                ],
+                'more_categories': ['Floral (e.g. Elderflower spritz) cocktails']
             },
             'spicy': {
                 'keywords': [
                     'ginger', 'cinnamon', 'chili', 'pepper', 'spice',
                     'allspice', 'cardamom', 'clove', 'nutmeg', 'jalapeño',
                     'habanero', 'cayenne', 'tabasco'
-                ]
+                ],
+                'more_categories': ['Spicy (e.g. Spicy Fifty) cocktails']
             },
             'minty': {
                 'keywords': [
@@ -136,7 +143,8 @@ class CocktailTagGenerator:
                     'amaretto', 'orgeat', 'hazelnut', 'almond',
                     'pistachio', 'walnut', 'pecan', 'peanut', 'nut',
                     'frangelico', 'nocino'
-                ]
+                ],
+                'more_categories': ['Nutty cocktails']
             },
             'smoky': {
                 'keywords': [
@@ -148,7 +156,8 @@ class CocktailTagGenerator:
                 'keywords': [
                     'pineapple', 'coconut', 'mango', 'passion fruit',
                     'guava', 'papaya', 'banana', 'tropical'
-                ]
+                ],
+                'more_categories': ['Tiki/tropical cocktails']
             },
             'berry': {
                 'keywords': [
@@ -167,6 +176,14 @@ class CocktailTagGenerator:
                     'vanilla', 'vanilla vodka', 'vanilla syrup', 'vanilla liqueur',
                     'vanilla extract', 'vanilia'
                 ]
+            },
+            'savory': {
+                'keywords': [
+                    'tomato', 'celery', 'worcestershire', 'soy sauce',
+                    'olive', 'pickle', 'savory', 'savoury', 'umami',
+                    'bacon', 'cheese'
+                ],
+                'more_categories': ['Savoury (e.g. Bloody Mary) cocktails']
             }
         }
 
@@ -219,7 +236,18 @@ class CocktailTagGenerator:
                         'cabernet', 'pinot noir', 'malbec', 'tempranillo'],
             'sparkling-wine': ['prosecco', 'cava', 'champagne', 'sparkling wine',
                               'rosé champagne', 'blanc de blancs', 'crémant'],
-            'port': ['port', 'ruby port', 'tawny port', 'white port', 'porto']
+            'port': ['port', 'ruby port', 'tawny port', 'white port', 'porto'],
+
+            # 特殊材料
+            'ice-cream': ['ice cream', 'ice-cream', 'vanilla ice cream', 'gelato']
+        }
+
+        # 材料標籤的 more_categories 映射 (補充識別來源)
+        self.INGREDIENT_MORE_CATEGORIES_MAPPING = {
+            'champagne': ['Champagne cocktails'],
+            'sparkling-wine': ['Champagne cocktails'],
+            'beer': ['Beer Cocktails cocktails'],
+            'ice-cream': ['Ice-cream cocktails cocktails']
         }
 
         # 維度四：風格/類型映射（基於 more_categories）
@@ -264,8 +292,7 @@ class CocktailTagGenerator:
             # 其他風格
             'spirit-forward': ['Spirit-forward cocktails'],
             'party': ['Party cocktails'],
-            'dessert': ['Dessert cocktails cocktails', 'Dessert cocktails'],
-            'savory': ['Savoury e.g. Bloody Mary cocktails', 'Savory cocktails']
+            'dessert': ['Dessert cocktails cocktails', 'Dessert cocktails']
         }
 
     def generate_tags(self, cocktail_data: Dict) -> Dict[str, List[str]]:
@@ -316,7 +343,7 @@ class CocktailTagGenerator:
         return sorted(list(spirits))
 
     def _identify_flavors(self, data: Dict) -> List[str]:
-        """識別風味特徵"""
+        """識別風味特徵 (增強版: 結合材料關鍵字 + more_categories)"""
         flavors = set()
 
         # 準備成分文字
@@ -326,28 +353,43 @@ class CocktailTagGenerator:
             all_ingredients.append(ing_detail.get('ingredient', ''))
         ingredients_text = ' '.join(all_ingredients).lower()
 
+        # 取得 more_categories
+        more_cats = data.get('more_categories', [])
+
         # 檢查每個風味
         for flavor, config in self.FLAVOR_MAPPING.items():
+            matched = False
+
             if config.get('method') == 'check_taste':
                 # 使用 strength_taste 資料
                 if self._check_taste_condition(data, config):
-                    flavors.add(flavor)
+                    matched = True
             else:
-                # 關鍵字匹配
+                # 方法1: 關鍵字匹配 (原有邏輯)
                 keywords = config.get('keywords', [])
                 required = config.get('required_ingredients', [])
                 all_keywords = keywords + required
 
-                # 任一關鍵字匹配即加入
                 for kw in all_keywords:
                     if kw in ingredients_text:
-                        flavors.add(flavor)
+                        matched = True
                         break
+
+                # 方法2: more_categories 匹配 (補充識別)
+                if not matched:
+                    category_patterns = config.get('more_categories', [])
+                    for cat in more_cats:
+                        if any(pattern in cat for pattern in category_patterns):
+                            matched = True
+                            break
+
+            if matched:
+                flavors.add(flavor)
 
         return sorted(list(flavors))
 
     def _identify_key_ingredients(self, data: Dict) -> List[str]:
-        """識別關鍵材料"""
+        """識別關鍵材料 (增強版: 結合材料關鍵字 + more_categories)"""
         ingredient_tags = set()
 
         # 從 ingredients_detail 獲取精確資訊
@@ -359,11 +401,19 @@ class CocktailTagGenerator:
         if not all_ingredients:
             all_ingredients = data.get('ingredients', [])
 
-        # 檢查每個材料映射
+        # 方法1: 檢查每個材料映射 (原有邏輯)
         for tag, patterns in self.INGREDIENT_TAGS_MAPPING.items():
             for ing in all_ingredients:
                 ing_lower = ing.lower()
                 if any(pattern in ing_lower for pattern in patterns):
+                    ingredient_tags.add(tag)
+                    break
+
+        # 方法2: 從 more_categories 補充識別特殊材料
+        more_cats = data.get('more_categories', [])
+        for tag, category_patterns in self.INGREDIENT_MORE_CATEGORIES_MAPPING.items():
+            for cat in more_cats:
+                if any(pattern in cat for pattern in category_patterns):
                     ingredient_tags.add(tag)
                     break
 
