@@ -714,6 +714,15 @@ class DrinkingRecord:
                             }
                         },
                         {'$sort': {'count': -1}}
+                    ],
+                    'location_distribution': [
+                        {
+                            '$group': {
+                                '_id': {'$ifNull': ['$location', '未填寫地點']},
+                                'count': {'$sum': 1}
+                            }
+                        },
+                        {'$sort': {'count': -1}}
                     ]
                 }
             }
@@ -732,7 +741,8 @@ class DrinkingRecord:
                     'sweetness': {'min': 0, 'max': 10, 'avg': 5}
                 },
                 'time_distribution': [],
-                'mood_distribution': []
+                'mood_distribution': [],
+                'location_distribution': [] 
             }
 
         data = result[0]
@@ -770,7 +780,8 @@ class DrinkingRecord:
                 }
             },
             'time_distribution': data.get('time_distribution', []),
-            'mood_distribution': data.get('mood_distribution', [])
+            'mood_distribution': data.get('mood_distribution', []),
+            'location_distribution': data.get('location_distribution', [])
         }
 
     @staticmethod
