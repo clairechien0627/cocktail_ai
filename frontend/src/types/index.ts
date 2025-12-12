@@ -348,6 +348,12 @@ export interface MoodDistribution {
   count: number;
 }
 
+export interface LocationDistribution {
+  _id: string;   // 地點名稱，例如 "家裡"、"BarXYZ"、"未填寫地點"
+  count: number; // 出現次數
+}
+
+
 export interface UserPreferencesAnalysis {
   favorite_tags: {
     base_spirits: TagPreference[];
@@ -360,6 +366,7 @@ export interface UserPreferencesAnalysis {
   };
   time_distribution: TimeDistribution[];
   mood_distribution: MoodDistribution[];
+    location_distribution: LocationDistribution[];
 }
 
 export interface RecommendationsResponse {
