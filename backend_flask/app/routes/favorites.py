@@ -23,6 +23,7 @@ def add_favorite():
             return jsonify({'error': '缺少調酒 ID'}), 400
 
         cocktail_id = data['cocktail_id']
+        conversation_id = data.get('conversation_id')  # 新增：獲取對話 ID
 
         from flask import current_app
         db = current_app.config['DB']
@@ -33,13 +34,13 @@ def add_favorite():
             return jsonify({'error': '調酒不存在'}), 404
 
         # 添加收藏
-        result = Favorite.add(db, user_id, cocktail_id)
+        result = Favorite.add(db, user_id, cocktail_id, conversation_id)
 
         if result is None:
             # 已經收藏過了
             return jsonify({'message': '已經收藏過此調酒'}), 200
 
-        current_app.logger.info(f"✓ 用戶 {user_id} 收藏了調酒 {cocktail_id}")
+        current_app.logger.info(f"✓ 用戶 {user_id} 在對話 {conversation_id} 中收藏了調酒 {cocktail_id}")
 
         return jsonify({
             'message': '收藏成功',
@@ -58,17 +59,18 @@ def remove_favorite(cocktail_id):
     """取消收藏"""
     try:
         user_id = get_jwt_identity()
+        conversation_id = request.args.get('conversation_id')  # 新增：從 query params 獲取對話 ID
 
         from flask import current_app
         db = current_app.config['DB']
 
         # 取消收藏
-        success = Favorite.remove(db, user_id, cocktail_id)
+        success = Favorite.remove(db, user_id, cocktail_id, conversation_id)
 
         if not success:
             return jsonify({'error': '未收藏此調酒'}), 404
 
-        current_app.logger.info(f"✓ 用戶 {user_id} 取消收藏調酒 {cocktail_id}")
+        current_app.logger.info(f"✓ 用戶 {user_id} 在對話 {conversation_id} 中取消收藏調酒 {cocktail_id}")
 
         return jsonify({'message': '取消收藏成功'}), 200
 
@@ -88,6 +90,7 @@ def get_favorites():
         # 獲取分頁參數
         page = request.args.get('page', 1, type=int)
         limit = request.args.get('limit', 20, type=int)
+        conversation_id = request.args.get('conversation_id')  # 新增：獲取對話 ID
 
         # 限制 limit 範圍
         limit = min(max(limit, 1), 100)
@@ -96,7 +99,7 @@ def get_favorites():
         db = current_app.config['DB']
 
         # 獲取收藏列表
-        result = Favorite.find_by_user(db, user_id, page, limit)
+        result = Favorite.find_by_user(db, user_id, page, limit, conversation_id)
 
         # 轉換 ObjectId 為字串
         for favorite in result['favorites']:
@@ -105,7 +108,7 @@ def get_favorites():
             if 'ingredients' in favorite:
                 favorite['ingredients_count'] = len(favorite['ingredients'])
 
-        current_app.logger.info(f"✓ 用戶 {user_id} 查詢收藏列表: {result['total']} 個")
+        current_app.logger.info(f"✓ 用戶 {user_id} 查詢對話 {conversation_id} 的收藏列表: {result['total']} 個")
 
         return jsonify(result), 200
 
@@ -121,12 +124,13 @@ def check_favorite(cocktail_id):
     """檢查是否已收藏"""
     try:
         user_id = get_jwt_identity()
+        conversation_id = request.args.get('conversation_id')  # 新增：獲取對話 ID
 
         from flask import current_app
         db = current_app.config['DB']
 
         # 檢查是否已收藏
-        is_favorited = Favorite.check_exists(db, user_id, cocktail_id)
+        is_favorited = Favorite.check_exists(db, user_id, cocktail_id, conversation_id)
 
         return jsonify({'is_favorited': is_favorited}), 200
 
@@ -142,12 +146,13 @@ def get_favorited_ids():
     """獲取所有收藏的調酒 ID 列表"""
     try:
         user_id = get_jwt_identity()
+        conversation_id = request.args.get('conversation_id')  # 新增：獲取對話 ID
 
         from flask import current_app
         db = current_app.config['DB']
 
         # 獲取所有收藏的調酒 ID
-        favorited_ids = Favorite.get_favorited_ids(db, user_id)
+        favorited_ids = Favorite.get_favorited_ids(db, user_id, conversation_id)
 
         return jsonify({
             'favorited_ids': favorited_ids,

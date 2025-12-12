@@ -7,6 +7,7 @@ import { getIcon } from '../utils/tagIcons';
 interface InteractiveCocktailCardProps {
   cocktail: CocktailCardData;
   isFavorited?: boolean;
+  conversationId?: string | null;  // 新增：對話 ID
   onFavoriteToggle?: (cocktailId: string, isFavorited: boolean) => void;
   onQuickAction?: (action: 'tell_more' | 'similar' | 'try_this', cocktailId: string) => void;
   onImageClick?: (cocktailId: string) => void;
@@ -15,6 +16,7 @@ interface InteractiveCocktailCardProps {
 export function InteractiveCocktailCard({
   cocktail,
   isFavorited = false,
+  conversationId,
   onFavoriteToggle,
   onQuickAction,
   onImageClick,
@@ -32,12 +34,12 @@ export function InteractiveCocktailCard({
 
     try {
       if (isFavorited) {
-        await favoritesAPI.remove(cocktail._id);
+        await favoritesAPI.remove(cocktail._id, conversationId || undefined);
         if (onFavoriteToggle) {
           onFavoriteToggle(cocktail._id, false);
         }
       } else {
-        await favoritesAPI.add(cocktail._id);
+        await favoritesAPI.add(cocktail._id, conversationId || undefined);
         if (onFavoriteToggle) {
           onFavoriteToggle(cocktail._id, true);
         }

@@ -84,6 +84,9 @@ const ChatPage = () => {
       setRecommendedCocktails(allCocktails);
 
       console.log('[ChatPage] 載入對話，提取到', allCocktails.length, '個歷史推薦');
+
+      // 新增：載入該對話的收藏
+      await loadFavorites(convId);
     } catch (err: any) {
       setError('載入對話失敗');
       console.error('載入對話失敗:', err);
@@ -106,6 +109,9 @@ const ChatPage = () => {
     setError('');
     // 新增：清空右側推薦卡片
     setRecommendedCocktails([]);
+    // 新增：清空收藏列表（新對話沒有對話 ID，所以收藏為空）
+    setFavoritedCocktails([]);
+    setFavoritedIds(new Set());
   };
 
   // 🗑️ 刪除對話功能（新增）
@@ -136,18 +142,28 @@ const ChatPage = () => {
 
 
   // 載入收藏列表
-  const loadFavorites = async () => {
+  const loadFavorites = async (convId?: string | null) => {
     try {
       setLoadingFavorites(true);
+      const conversationIdToUse = convId || conversationId;
+
+      if (!conversationIdToUse) {
+        // 沒有對話 ID 時，清空收藏
+        setFavoritedCocktails([]);
+        setFavoritedIds(new Set());
+        console.log('[ChatPage] 無對話 ID，清空收藏列表');
+        return;
+      }
+
       const [favoritesResponse, idsResponse] = await Promise.all([
-        favoritesAPI.getAll(1, 100),  // 載入前 100 個收藏
-        favoritesAPI.getIds()
+        favoritesAPI.getAll(1, 100, conversationIdToUse),  // 載入前 100 個收藏
+        favoritesAPI.getIds(conversationIdToUse)
       ]);
 
       setFavoritedCocktails(favoritesResponse.favorites);
       setFavoritedIds(new Set(idsResponse.favorited_ids));
 
-      console.log('[ChatPage] 載入收藏:', favoritesResponse.total, '個');
+      console.log('[ChatPage] 載入對話', conversationIdToUse, '的收藏:', favoritesResponse.total, '個');
     } catch (error) {
       console.error('載入收藏失敗:', error);
     } finally {
@@ -210,8 +226,9 @@ const ChatPage = () => {
 
   // 處理卡片快速操作
   const handleCardQuickAction = (action: 'tell_more' | 'similar' | 'try_this', cocktailId: string) => {
-    // 從推薦列表中找到調酒資訊
-    const cocktail = recommendedCocktails.find(c => c._id === cocktailId);
+    // 從推薦列表或收藏列表中找到調酒資訊
+    const cocktail = recommendedCocktails.find(c => c._id === cocktailId)
+      || favoritedCocktails.find(c => c._id === cocktailId);
     const cocktailName = cocktail?.name_zh || cocktail?.name || '這款調酒';
 
     let message = '';
@@ -720,6 +737,7 @@ const ChatPage = () => {
                       key={`rec-${cocktail._id}-${index}`}
                       cocktail={cocktail}
                       isFavorited={favoritedIds.has(cocktail._id)}
+                      conversationId={conversationId}
                       onFavoriteToggle={handleFavoriteToggle}
                       onQuickAction={handleCardQuickAction}
                       onImageClick={handleViewDetails}
@@ -750,6 +768,7 @@ const ChatPage = () => {
                       key={`fav-${cocktail._id}-${index}`}
                       cocktail={cocktail as CocktailCardData}
                       isFavorited={true}
+                      conversationId={conversationId}
                       onFavoriteToggle={handleFavoriteToggle}
                       onQuickAction={handleCardQuickAction}
                       onImageClick={handleViewDetails}
@@ -846,6 +865,7 @@ const ChatPage = () => {
                           key={`mobile-rec-${cocktail._id}-${index}`}
                           cocktail={cocktail}
                           isFavorited={favoritedIds.has(cocktail._id)}
+                          conversationId={conversationId}
                           onFavoriteToggle={handleFavoriteToggle}
                           onQuickAction={handleCardQuickAction}
                           onImageClick={handleViewDetails}
@@ -876,6 +896,7 @@ const ChatPage = () => {
                           key={`mobile-fav-${cocktail._id}-${index}`}
                           cocktail={cocktail as CocktailCardData}
                           isFavorited={true}
+                          conversationId={conversationId}
                           onFavoriteToggle={handleFavoriteToggle}
                           onQuickAction={handleCardQuickAction}
                           onImageClick={handleViewDetails}

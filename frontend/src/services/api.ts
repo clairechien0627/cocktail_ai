@@ -367,40 +367,44 @@ export const personalitiesAPI = {
 
 export const favoritesAPI = {
   // 添加收藏
-  add: async (cocktailId: string): Promise<{ message: string; favorite_id: string }> => {
+  add: async (cocktailId: string, conversationId?: string): Promise<{ message: string; favorite_id: string }> => {
     const response = await api.post<{ message: string; favorite_id: string }>(
       '/api/favorites/',
-      { cocktail_id: cocktailId }
+      { cocktail_id: cocktailId, conversation_id: conversationId }
     );
     return response.data;
   },
 
   // 取消收藏
-  remove: async (cocktailId: string): Promise<{ message: string }> => {
-    const response = await api.delete<{ message: string }>(`/api/favorites/${cocktailId}`);
+  remove: async (cocktailId: string, conversationId?: string): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/api/favorites/${cocktailId}`, {
+      params: conversationId ? { conversation_id: conversationId } : {}
+    });
     return response.data;
   },
 
   // 取得收藏列表（分頁）
-  getAll: async (page: number = 1, limit: number = 20): Promise<FavoritesResponse> => {
+  getAll: async (page: number = 1, limit: number = 20, conversationId?: string): Promise<FavoritesResponse> => {
     const response = await api.get<FavoritesResponse>('/api/favorites/', {
-      params: { page, limit },
+      params: { page, limit, ...(conversationId && { conversation_id: conversationId }) },
     });
     return response.data;
   },
 
   // 檢查是否已收藏
-  check: async (cocktailId: string): Promise<{ is_favorited: boolean }> => {
+  check: async (cocktailId: string, conversationId?: string): Promise<{ is_favorited: boolean }> => {
     const response = await api.get<{ is_favorited: boolean }>(
-      `/api/favorites/${cocktailId}/check`
+      `/api/favorites/${cocktailId}/check`,
+      { params: conversationId ? { conversation_id: conversationId } : {} }
     );
     return response.data;
   },
 
   // 取得所有收藏的調酒 ID 列表
-  getIds: async (): Promise<{ favorited_ids: string[]; count: number }> => {
+  getIds: async (conversationId?: string): Promise<{ favorited_ids: string[]; count: number }> => {
     const response = await api.get<{ favorited_ids: string[]; count: number }>(
-      '/api/favorites/ids'
+      '/api/favorites/ids',
+      { params: conversationId ? { conversation_id: conversationId } : {} }
     );
     return response.data;
   },

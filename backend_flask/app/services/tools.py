@@ -101,7 +101,16 @@ class SearchByCategoryInput(BaseModel):
 @tool(
     "search_by_name",
     args_schema=SearchByNameInput,
-    description="Search for a cocktail by its exact name to get complete recipe, ingredients, steps, and ratings. Use this when the user asks about a specific cocktail like 'How to make a Mojito?' or 'Tell me about Margarita'."
+    description="""Search for a cocktail by its exact NAME (not ingredient name) to get complete recipe, ingredients, steps, and ratings.
+
+Use this when the user asks about a specific COCKTAIL (drink) like:
+- 'How to make a Mojito?'
+- 'Tell me about Margarita'
+- 'What is a Negroni?'
+
+IMPORTANT: Some words can be both cocktail names AND ingredient names (e.g., 'Campari', 'Maraschino').
+If unsure whether the user means a cocktail or an ingredient, try this tool first. If no results are found,
+the word might actually refer to an ingredient, not a cocktail name."""
 )
 def search_by_name(name: str) -> Dict[str, Any]:
     """根據調酒名稱搜尋完整配方和資訊。"""
@@ -121,7 +130,18 @@ def search_by_name(name: str) -> Dict[str, Any]:
 @tool(
     "search_by_ingredients",
     args_schema=SearchByIngredientsInput,
-    description="Search for cocktails that contain specific ingredients. Use this when the user mentions ingredients they have (e.g., 'I have vodka and lime juice, what can I make?') or wants cocktails with certain ingredients (e.g., 'Show me gin cocktails')."
+    description="""Search for cocktails that CONTAIN specific ingredients (like vodka, gin, rum, Campari, Maraschino liqueur, lime juice, etc.).
+
+Use this when the user wants to find cocktails that include these ingredients:
+- 'I have vodka and lime juice, what can I make?'
+- 'Show me gin cocktails'
+- 'Cocktails with Campari'
+- 'What can I make with rum?'
+- 'Drinks that use Maraschino liqueur'
+
+NOTE: This searches for cocktails CONTAINING the ingredient, not cocktails NAMED after the ingredient.
+For example, searching 'Campari' here will find cocktails like Negroni (which contains Campari),
+not a cocktail called 'Campari'."""
 )
 def search_by_ingredients(
     ingredients: List[str], 

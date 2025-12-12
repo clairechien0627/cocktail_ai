@@ -1141,12 +1141,13 @@ class Favorite:
     """收藏模型"""
 
     @staticmethod
-    def add(db, user_id, cocktail_id):
+    def add(db, user_id, cocktail_id, conversation_id=None):
         """添加收藏"""
         try:
             favorite_data = {
                 'user_id': ObjectId(user_id),
                 'cocktail_id': ObjectId(cocktail_id),
+                'conversation_id': ObjectId(conversation_id) if conversation_id else None,
                 'created_at': datetime.utcnow()
             }
             result = db.favorites.insert_one(favorite_data)
@@ -1158,22 +1159,30 @@ class Favorite:
             raise e
 
     @staticmethod
-    def remove(db, user_id, cocktail_id):
+    def remove(db, user_id, cocktail_id, conversation_id=None):
         """取消收藏"""
-        result = db.favorites.delete_one({
+        query = {
             'user_id': ObjectId(user_id),
             'cocktail_id': ObjectId(cocktail_id)
-        })
+        }
+        if conversation_id:
+            query['conversation_id'] = ObjectId(conversation_id)
+        result = db.favorites.delete_one(query)
         return result.deleted_count > 0
 
     @staticmethod
-    def find_by_user(db, user_id, page=1, limit=20):
+    def find_by_user(db, user_id, page=1, limit=20, conversation_id=None):
         """查詢用戶的收藏列表（分頁）"""
         skip = (page - 1) * limit
 
+        # 構建匹配條件
+        match_query = {'user_id': ObjectId(user_id)}
+        if conversation_id:
+            match_query['conversation_id'] = ObjectId(conversation_id)
+
         # 使用聚合管道來 join cocktails 集合
         pipeline = [
-            {'$match': {'user_id': ObjectId(user_id)}},
+            {'$match': match_query},
             {'$sort': {'created_at': -1}},
             {'$skip': skip},
             {'$limit': limit},
@@ -1207,7 +1216,7 @@ class Favorite:
         favorites = list(db.favorites.aggregate(pipeline))
 
         # 計算總數
-        total = db.favorites.count_documents({'user_id': ObjectId(user_id)})
+        total = db.favorites.count_documents(match_query)
 
         return {
             'favorites': favorites,
@@ -1218,19 +1227,22 @@ class Favorite:
         }
 
     @staticmethod
-    def check_exists(db, user_id, cocktail_id):
+    def check_exists(db, user_id, cocktail_id, conversation_id=None):
         """檢查是否已收藏"""
-        exists = db.favorites.find_one({
+        query = {
             'user_id': ObjectId(user_id),
             'cocktail_id': ObjectId(cocktail_id)
-        })
+        }
+        if conversation_id:
+            query['conversation_id'] = ObjectId(conversation_id)
+        exists = db.favorites.find_one(query)
         return exists is not None
 
     @staticmethod
-    def get_favorited_ids(db, user_id):
+    def get_favorited_ids(db, user_id, conversation_id=None):
         """獲取用戶所有收藏的調酒 ID 列表"""
-        favorites = db.favorites.find(
-            {'user_id': ObjectId(user_id)},
-            {'cocktail_id': 1}
-        )
+        query = {'user_id': ObjectId(user_id)}
+        if conversation_id:
+            query['conversation_id'] = ObjectId(conversation_id)
+        favorites = db.favorites.find(query, {'cocktail_id': 1})
         return [str(fav['cocktail_id']) for fav in favorites]

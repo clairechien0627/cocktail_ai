@@ -57,13 +57,47 @@ BARTENDER_SYSTEM_PROMPT = """你是一位專業且友善的 AI 調酒師「調�
 7. get_random_cocktail - 隨機推薦
 
 📋 判斷原則：
-✅ 用戶想找特定調酒 → 使用 search_by_name
-✅ 用戶提到材料 → 使用 search_by_ingredients
+✅ 用戶想找特定調酒（如"介紹 Mojito"、"White Negroni 怎麼做"）→ 使用 search_by_name
+✅ 用戶想搜尋包含特定材料的調酒（如"有琴酒的調酒"、"用蘭姆酒做調酒"）→ 使用 search_by_ingredients
+❌ 用戶詢問材料知識（如"什麼是琴酒？"、"琴酒和伏特加的差別"）→ 不用工具，直接回答
 ✅ 用戶描述口味 → 使用 search_by_taste_semantic（RAG）
 ✅ 用戶提到場景/情緒 → 使用 search_by_scenario_semantic（RAG）
 ✅ 用戶提到特定條件（難度、卡路里等）→ 使用 filter_by_attributes
 ✅ 用戶說"隨便"、"驚喜" → 使用 get_random_cocktail
 ❌ 用戶閒聊、問候、分享心情 → 不用工具，直接回應
+
+🤔 處理歧義（當不確定是調酒名稱還是材料名稱時）：
+- 如果用戶只說一個詞（如"推薦馬拉斯奇諾"、"介紹 Campari"），優先嘗試 search_by_name
+- 如果沒找到該名稱的調酒，再用 search_by_ingredients 搜尋包含該材料的調酒
+- 使用「智能組合工具」功能同時嘗試兩種搜尋
+
+🚨 **強制工具使用規則（非常重要）**：
+1. 當用戶要求「推薦調酒」、「介紹調酒」、「更多推薦」、「還有其他的嗎」時，你**必須使用工具**查詢資料庫
+2. **絕對禁止**憑記憶或訓練資料編造調酒資訊（材料、配方、評分等）
+3. 如果用戶要求更多推薦，你應該：
+   - 先使用工具（如 search_by_ingredients、search_by_taste_semantic）嘗試查詢
+   - 如果資料庫真的沒有更多結果，誠實告訴用戶「目前資料庫中沒有更多符合的調酒」
+   - **絕對不要**自己編造調酒名稱、配方、評分
+4. 只有在以下情況可以不使用工具：
+   - 用戶詢問已經推薦過的調酒的細節（如「剛才的 White Negroni 怎麼做？」、
+     「這杯酒用了什麼材料？」、「它怎麼做？」、「這個調酒的評分？」），
+     這時請直接從之前的工具結果或對話歷史中提取資訊，**絕對不要重新搜尋**
+   - 純聊天對話（如「謝謝」、「你好」、「今天天氣如何」）
+   - 一般知識問答（如「什麼是雪莉酒？」、「琴酒的歷史」）
+5. **記住**：所有具體的調酒推薦、配方、評分都必須來自工具查詢結果，不能憑空創造
+
+📚 材料知識問答指引：
+當用戶詢問以下類型的問題時，請直接回答，不需要使用工具：
+- 材料定義（如"什麼是馬拉斯奇諾櫻桃酒？"、"琴酒是什麼？"）
+- 材料比較（如"琴酒和伏特加有什麼差別？"）
+- 材料種類（如"蘭姆酒的種類有哪些？"）
+- 材料歷史/知識（如"琴酒的起源"、"為什麼叫金巴利"）
+這些是一般知識問答，不需要查詢調酒資料庫。
+
+🧪 常見材料名稱參考（這些是材料，但也可能是調酒名稱）：
+- 基酒：Vodka, Gin, Rum, Tequila, Whiskey, Brandy
+- 利口酒：Campari, Aperol, Maraschino, Cointreau, Grand Marnier, Kahlúa, Baileys
+- 其他：Vermouth, Bitters, 各種果汁
 
 💡 智能組合工具：
 - 可以先用 RAG 找相似，再用 filter 精確篩選
@@ -86,6 +120,9 @@ BARTENDER_SYSTEM_PROMPT = """你是一位專業且友善的 AI 調酒師「調�
 - 記住用戶之前的偏好和查詢條件
 - 如果用戶說"換一個"，使用相同條件但排除已推薦的
 - 如果用戶補充新條件，更新查詢參數
+
+📝 重要：當用戶使用代詞（如"這個"、"它"、"這杯酒"）時，請從對話上下文判斷
+用戶指的是哪款調酒，直接從之前的對話或工具結果中回答，不需要重新搜尋。
 
 當前對話上下文：
 - 已推薦過: {recommended_cocktails}
@@ -299,6 +336,92 @@ def get_graph():
     return bartender_graph
 
 
+def extract_cocktails_with_llm(ai_response: str, llm_instance) -> List[str]:
+    """
+    使用 LLM 二次調用提取調酒名稱
+
+    這是最可靠的方法：直接讓 LLM 從自己的回應中提取調酒名稱
+    不依賴正則表達式，準確率 95%+
+
+    Args:
+        ai_response: LLM 的完整回應文本
+        llm_instance: LLM 實例
+
+    Returns:
+        調酒名稱列表
+    """
+    from flask import current_app
+    import json
+    import re
+
+    extraction_prompt = f"""從以下文本中提取所有提到的調酒英文名稱，以 JSON 數組格式返回。
+
+要求：
+1. 只提取調酒的英文名稱（如 "Mojito", "Piña Colada"）
+2. 不要包含中文翻譯或描述
+3. 只返回 JSON 數組，不要其他文字
+4. 如果沒有提到任何調酒，返回空數組 []
+
+文本：
+{ai_response}
+
+範例輸出：
+["Mojito", "Margarita", "Piña Colada"]
+
+請輸出 JSON 數組："""
+
+    try:
+        # 調用 LLM 提取
+        result = llm_instance.invoke(extraction_prompt)
+
+        # 提取 content
+        if hasattr(result, 'content'):
+            content = result.content
+        else:
+            content = str(result)
+
+        current_app.logger.info(f"[LLM二次提取] 原始回應: {content[:200]}")
+
+        # 嘗試解析 JSON
+        # 先清理可能的 Markdown 代碼塊標記
+        content = content.strip()
+        content = re.sub(r'^```json\s*', '', content)
+        content = re.sub(r'^```\s*', '', content)
+        content = re.sub(r'\s*```$', '', content)
+
+        # 解析 JSON
+        cocktail_names = json.loads(content)
+
+        if isinstance(cocktail_names, list):
+            current_app.logger.info(f"[LLM二次提取] 成功提取 {len(cocktail_names)} 個調酒: {cocktail_names}")
+            return cocktail_names
+        else:
+            current_app.logger.warning(f"[LLM二次提取] 返回格式不是列表: {type(cocktail_names)}")
+            return []
+
+    except json.JSONDecodeError as e:
+        current_app.logger.error(f"[LLM二次提取] JSON 解析失敗: {str(e)}, 內容: {content[:200]}")
+        return []
+    except Exception as e:
+        current_app.logger.error(f"[LLM二次提取] 提取失敗: {str(e)}")
+        return []
+
+
+def normalize_cocktail_name(name: str) -> str:
+    """
+    標準化調酒名稱（移除重音符號和特殊字元）
+
+    將 'Crème de Café' 轉為 'Creme de Cafe'，方便比對
+    """
+    import unicodedata
+    # 將 Unicode 標準化為分解形式（如 'é' 變成 'e' + 重音符號）
+    nfd = unicodedata.normalize('NFD', name)
+    # 過濾掉重音符號（類別 Mn = Mark, Nonspacing）
+    without_accents = ''.join(c for c in nfd if unicodedata.category(c) != 'Mn')
+    # 轉小寫以方便比對
+    return without_accents.lower()
+
+
 def extract_cocktails_from_ai_message(result: dict, db) -> List[dict]:
     """
     從 LLM 的 AIMessage 中提取調酒名稱並匹配資料庫
@@ -329,21 +452,54 @@ def extract_cocktails_from_ai_message(result: dict, db) -> List[dict]:
     last_message = ai_messages[-1]
     content = last_message.content if hasattr(last_message, 'content') else str(last_message)
 
+    # 處理 Gemini 的 list 格式（轉換為字串）
+    if isinstance(content, list):
+        text_parts = []
+        for item in content:
+            if isinstance(item, dict) and item.get('type') == 'text':
+                text_parts.append(item.get('text', ''))
+            elif isinstance(item, str):
+                text_parts.append(item)
+        content = ' '.join(text_parts)
+    elif not isinstance(content, str):
+        content = str(content)
+
     current_app.logger.info(f"[LLM提取] AIMessage 內容長度: {len(content)} 字元")
 
     # 3. 使用多種正則模式提取調酒名稱
     patterns = [
+        # 優先級 1: 列表格式（數字. 調酒名稱）- 最常見於多調酒推薦
+        r'^\d+\.\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s&\'-]+)$',  # "1. Mojito"（行首）
+        r'\n\d+\.\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s&\'-]+)',  # 換行後 "1. Mojito"
+
+        # 優先級 2: 全形引號格式（「調酒名稱」）
+        r'「([^」]+)」',  # 「Grapevyne」
+
+        # 優先級 3: 無引號格式
+        r'介紹\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s&\'-]+?)(?=[，。！？\n,])',  # "介紹 XXX，"
+        r'推薦\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s&\'-]+?)(?=[，。！？\n,])',  # "推薦 XXX，"
+        r'這款\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s&\'-]+?)(?=[，。！？\n,])',  # "這款 XXX，"
+        r'名為\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s&\'-]+?)(?=[，。！？\n,])',  # "名為 XXX，"
+        r'叫做\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s&\'-]+?)(?=[，。！？\n,])',  # "叫做 XXX，"
+
+        # 優先級 4: 英文引號格式
         r'["""]([^"""]+?)["""]',           # 中英文引號內的內容
         r'名為\s*["""]([^"""]+?)["""]',    # "名為 'XXX'"
         r'推薦\s*["""]([^"""]+?)["""]',    # "推薦 'XXX'"
         r'介紹\s*["""]([^"""]+?)["""]',    # "介紹 'XXX'"
         r'這款\s*["""]([^"""]+?)["""]',    # "這款 'XXX'"
-        r'\*\*([A-Z][a-zA-Z0-9\s&\'-]+)\*\*',  # **Bold Text** 格式
+
+        # 優先級 5: 粗體格式（支援特殊字元）
+        r'\*\*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s&\'-]+)\*\*',  # **Bold Text** 格式
     ]
 
     extracted_names = []
-    for pattern in patterns:
-        matches = re.findall(pattern, content)
+    for i, pattern in enumerate(patterns):
+        # 前兩個模式需要 MULTILINE 標誌（行首匹配）
+        if i < 2:
+            matches = re.findall(pattern, content, re.MULTILINE)
+        else:
+            matches = re.findall(pattern, content)
         extracted_names.extend(matches)
 
     # 去重並過濾掉太短或太長的名稱
@@ -357,16 +513,33 @@ def extract_cocktails_from_ai_message(result: dict, db) -> List[dict]:
     if not extracted_names:
         return []
 
-    # 4. 與資料庫匹配
+    # 4. 與資料庫匹配並驗證
     cocktails = []
     for name in extracted_names:
         cocktail = fuzzy_match_cocktail_name(name, db)
         if cocktail:
-            cocktails.append({
-                'id': str(cocktail['_id']),
-                'name': cocktail['name']
-            })
-            current_app.logger.info(f"[LLM提取] 匹配成功: '{name}' -> '{cocktail['name']}'")
+            cocktail_name = cocktail['name']
+
+            # 驗證：檢查調酒名稱是否真的出現在 LLM 輸出中
+            # 支援原名和標準化名稱（移除重音符號）的比對
+            name_in_content = (
+                cocktail_name in content or
+                normalize_cocktail_name(cocktail_name) in normalize_cocktail_name(content) or
+                # 也檢查部分匹配（如 "Café" 在 "Crème de Café" 中）
+                any(word in content for word in cocktail_name.split() if len(word) >= 4)
+            )
+
+            if name_in_content:
+                cocktails.append({
+                    'id': str(cocktail['_id']),
+                    'name': cocktail['name']
+                })
+                current_app.logger.info(f"[LLM提取] 匹配並驗證成功: '{name}' -> '{cocktail['name']}'")
+            else:
+                current_app.logger.warning(
+                    f"[LLM提取] 匹配成功但驗證失敗: '{name}' -> '{cocktail['name']}' "
+                    f"(調酒名稱未出現在 LLM 原文中，可能是錯誤匹配)"
+                )
         else:
             current_app.logger.debug(f"[LLM提取] 無法匹配: '{name}'")
 

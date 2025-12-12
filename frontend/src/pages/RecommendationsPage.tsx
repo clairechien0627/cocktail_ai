@@ -11,8 +11,6 @@ import {
   Edit3,
   X,
   CheckCircle,
-  ChevronLeft,
-  ChevronRight,
   Leaf,
   ChefHat,
   GlassWater,
@@ -27,6 +25,7 @@ import {
 } from 'lucide-react';
 import type { Cocktail } from '../types';
 import { TagBadge } from '../utils/tagIcons';
+import { CategoryBadge } from '../utils/categoryIcons';
 
 // Session Storage 鍵名
 const SESSION_STORAGE_KEY = 'cocktail_recommendations_state';
@@ -48,10 +47,10 @@ const RecommendationsPage = () => {
   const [hasDrunk, setHasDrunk] = useState<boolean>(false);
   const [explorationMode, setExplorationMode] = useState<'balanced' | 'adventurous'>('balanced');
   const [hasMore, setHasMore] = useState(true);
+  const [langZh, setLangZh] = useState(false); // false=英文, true=中文
 
   // 圖片懶加載相關
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const imageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   useEffect(() => {
     // 嘗試從 Session Storage 載入狀態
@@ -363,6 +362,8 @@ const RecommendationsPage = () => {
           onClose={() => setSelectedCocktail(null)}
           onRecord={() => setShowRecordForm(true)}
           renderStars={renderStars}
+          langZh={langZh}
+          setLangZh={setLangZh}
         />
       )}
 
@@ -546,19 +547,23 @@ const CocktailCard = ({
   );
 };
 
-// 調酒詳情模態框元件
+// 調酒詳情模態框元件（完整版，參考 CocktailsPage）
 const CocktailDetailModal = ({
   cocktail,
   hasDrunk,
   onClose,
   onRecord,
   renderStars,
+  langZh,
+  setLangZh,
 }: {
   cocktail: Cocktail;
   hasDrunk: boolean;
   onClose: () => void;
   onRecord: () => void;
   renderStars: (rating?: number) => React.ReactNode;
+  langZh: boolean;
+  setLangZh: (value: boolean) => void;
 }) => {
   return (
     <div
@@ -569,10 +574,16 @@ const CocktailDetailModal = ({
         className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header with Record Button */}
+        {/* Header with Language Toggle and Record Button */}
         <div className="sticky top-0 bg-primary-600 text-white px-6 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3 flex-1">
-            <h2 className="text-2xl font-bold">{cocktail.name}</h2>
+            <h2 className="text-2xl font-bold">
+              {langZh
+                ? cocktail.name_zh
+                  ? `${cocktail.name_zh} (${cocktail.name})`
+                  : cocktail.name
+                : cocktail.name}
+            </h2>
             {hasDrunk && (
               <span className="flex items-center gap-1.5 px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
                 <CheckCircle className="w-4 h-4" />
@@ -581,6 +592,13 @@ const CocktailDetailModal = ({
             )}
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setLangZh((v) => !v)}
+              className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-white bg-opacity-20 hover:bg-opacity-30 transition-colors"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-white" />
+              {langZh ? '英' : '中'}
+            </button>
             <button
               onClick={onRecord}
               className="flex items-center gap-2 px-4 py-2 bg-white text-primary-600 rounded-lg font-medium hover:bg-gray-100 transition-colors"
@@ -597,25 +615,33 @@ const CocktailDetailModal = ({
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
-          {/* Image */}
-          {cocktail.image_url && (
-            <div className="mb-6">
-              <img
-                src={cocktail.image_url}
-                alt={cocktail.name}
-                className="w-full h-auto max-h-96 object-contain rounded-lg"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            </div>
-          )}
+        {/* 調酒大圖 */}
+        {cocktail.image_url && (
+          <div className="relative w-full h-96 bg-white overflow-hidden">
+            <img
+              src={cocktail.image_url}
+              alt={cocktail.name}
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                // 圖片載入失敗時顯示佔位符
+                e.currentTarget.style.display = 'none';
+                const parent = e.currentTarget.parentElement;
+                if (parent && !parent.querySelector('.fallback-large')) {
+                  parent.className = 'relative w-full h-96 bg-gradient-to-br from-primary-200 to-primary-300 overflow-hidden flex items-center justify-center';
+                  const fallback = document.createElement('div');
+                  fallback.className = 'fallback-large text-center';
+                  fallback.innerHTML = `<svg class="w-32 h-32 text-primary-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg><p class="text-primary-700 text-lg font-medium">${cocktail.name}</p>`;
+                  parent.appendChild(fallback);
+                }
+              }}
+            />
+          </div>
+        )}
 
-          {/* 推薦理由與相似度 */}
+        <div className="p-6 space-y-6">
+          {/* 推薦理由與相似度（推薦專屬） */}
           {cocktail.recommendation_reason && (
-            <div className="mb-4 p-4 bg-primary-50 border-l-4 border-primary-400 rounded">
+            <div className="bg-primary-50 border-l-4 border-primary-400 rounded p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-5 h-5 text-primary-600" />
                 <span className="font-semibold text-primary-900">推薦理由</span>
@@ -634,76 +660,127 @@ const CocktailDetailModal = ({
             </div>
           )}
 
-          {/* Ratings & Difficulty */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            {cocktail.ratings?.professional != null && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="text-sm text-gray-600 mb-1">專業評分</div>
-                <div className="flex items-center gap-2">
-                  {renderStars(cocktail.ratings.professional)}
-                  <span className="text-xl font-bold text-gray-900">
-                    {cocktail.ratings.professional.toFixed(1)}
-                  </span>
-                </div>
+          {/* COTD 徵章 */}
+          {cocktail.cotd?.text && (
+            <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-400 rounded-lg p-4 shadow-md">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-5 h-5 text-yellow-600 fill-yellow-400" />
+                <h4 className="font-bold text-yellow-900">
+                  {cocktail.cotd.title || 'Cocktail of the Day'}
+                </h4>
+                <Sparkles className="w-5 h-5 text-yellow-600 fill-yellow-400" />
               </div>
-            )}
+              <p className="text-yellow-800 text-sm">{cocktail.cotd.text}</p>
+            </div>
+          )}
 
-            {cocktail.difficulty && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="text-sm text-gray-600 mb-1">難度</div>
-                <div className={`inline-block px-3 py-1 rounded text-sm font-semibold ${
-                  cocktail.difficulty === 'easy'
-                    ? 'bg-green-100 text-green-700'
-                    : cocktail.difficulty === 'medium'
-                    ? 'bg-yellow-100 text-yellow-700'
-                    : 'bg-red-100 text-red-700'
-                }`}>
-                  {cocktail.difficulty === 'easy' ? '簡單' : cocktail.difficulty === 'medium' ? '中等' : '困難'}
+          {/* 1. 評分與基本資訊 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              {cocktail.ratings && (
+                <div className="space-y-2">
+                  {cocktail.ratings.professional != null && (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">專業評分</p>
+                      <div className="flex items-center gap-2">
+                        {renderStars(cocktail.ratings.professional)}
+                        <span className="font-bold text-lg text-gray-900">
+                          {cocktail.ratings.professional.toFixed(1)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {cocktail.ratings.public != null && (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">公眾評分</p>
+                      <div className="flex items-center gap-2">
+                        {renderStars(cocktail.ratings.public)}
+                        <span className="font-bold text-lg text-gray-900">
+                          {cocktail.ratings.public.toFixed(1)}
+                        </span>
+                        {cocktail.ratings.public_count && (
+                          <span className="text-sm text-gray-500">
+                            ({cocktail.ratings.public_count} 則評價)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 items-start justify-end">
+              <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
+                {langZh && cocktail.category_zh
+                  ? cocktail.category_zh
+                  : cocktail.category}
+              </span>
+              {cocktail.difficulty && (
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    cocktail.difficulty === 'easy'
+                      ? 'bg-green-100 text-green-700'
+                      : cocktail.difficulty === 'medium'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {cocktail.difficulty === 'easy'
+                    ? '簡單'
+                    : cocktail.difficulty === 'medium'
+                    ? '中等'
+                    : '困難'}
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Taste Profile */}
+          {/* 2. 風味檔案 */}
           {cocktail.taste_profile && (
-            <div className="mb-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">風味檔案</h3>
-              <div className="space-y-3">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary-600" />
+                風味檔案
+              </h3>
+              <div className="space-y-4">
                 {cocktail.taste_profile.strength !== undefined && (
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Flame className="w-5 h-5 text-orange-500" />
-                        <span className="text-sm font-medium text-gray-700">酒精強度</span>
+                        <span className="font-medium">酒精強度</span>
                       </div>
-                      <span className="text-sm font-semibold text-gray-900">
+                      <span className="text-lg font-bold text-orange-600">
                         {cocktail.taste_profile.strength}/10
                       </span>
                     </div>
                     <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-orange-500"
-                        style={{ width: `${(cocktail.taste_profile.strength / 10) * 100}%` }}
+                        className="h-full bg-gradient-to-r from-orange-400 to-orange-600"
+                        style={{
+                          width: `${(cocktail.taste_profile.strength / 10) * 100}%`,
+                        }}
                       />
                     </div>
                   </div>
                 )}
-
                 {cocktail.taste_profile.sweetness !== undefined && (
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Droplet className="w-5 h-5 text-blue-500" />
-                        <span className="text-sm font-medium text-gray-700">甜度</span>
+                        <span className="font-medium">甜度</span>
                       </div>
-                      <span className="text-sm font-semibold text-gray-900">
+                      <span className="text-lg font-bold text-blue-600">
                         {cocktail.taste_profile.sweetness}/10
                       </span>
                     </div>
                     <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-blue-500"
-                        style={{ width: `${(cocktail.taste_profile.sweetness / 10) * 100}%` }}
+                        className="h-full bg-gradient-to-r from-blue-400 to-blue-600"
+                        style={{
+                          width: `${(cocktail.taste_profile.sweetness / 10) * 100}%`,
+                        }}
                       />
                     </div>
                   </div>
@@ -712,135 +789,321 @@ const CocktailDetailModal = ({
             </div>
           )}
 
-          {/* Ingredients */}
-          <div className="mb-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-              <GlassWater className="w-5 h-5 text-primary-600" />
+          {/* 3. 材料 */}
+          <div>
+            <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+              <Leaf className="w-5 h-5 text-green-600" />
               材料
             </h3>
-            <ul className="space-y-2">
-              {(cocktail.ingredients_detail || cocktail.ingredients).map((item, i) => {
-                const name = typeof item === "string" ? item : item.ingredient;
-                const amount = typeof item === "string" ? null : item.amount;
-                return (
-                  <li key={i} className="flex justify-between items-start text-gray-700">
-                    <div className="flex gap-2">
-                      <span className="text-primary-600 font-bold">•</span>
-                      <span className="break-words">{name}</span>
-                    </div>
-                    {amount && <span className="text-gray-500 ml-4 shrink-0">{amount}</span>}
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <ul className="space-y-2">
+                {cocktail.ingredients_detail &&
+                cocktail.ingredients_detail.length > 0 ? (
+                  cocktail.ingredients_detail.map((detail, i) => {
+                    const zhName = langZh && cocktail.ingredients_zh?.[i]
+                      ? cocktail.ingredients_zh[i]
+                      : null;
+                    return (
+                      <li key={i} className="flex items-start gap-3">
+                        <span className="font-semibold text-primary-600 min-w-[80px]">
+                          {detail.amount}
+                        </span>
+                        <span className="text-gray-900">
+                          {zhName ? (
+                            <>
+                              {zhName}
+                              <span className="text-gray-500 text-sm ml-2">({detail.ingredient})</span>
+                            </>
+                          ) : (
+                            detail.ingredient
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })
+                ) : cocktail.ingredients && cocktail.ingredients.length > 0 ? (
+                  cocktail.ingredients.map((ing, i) => (
+                    <li key={i} className="text-gray-900">
+                      {ing}
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-gray-500 italic">無材料資訊</li>
+                )}
+              </ul>
+            </div>
           </div>
 
-          {/* Method */}
-          {cocktail.method && cocktail.method.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                <ChefHat className="w-5 h-5 text-primary-600" />
-                製作步驟
+          {/* 4. 製作方法 */}
+          {cocktail.method_sections && (
+            <div>
+              <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                <ChefHat className="w-5 h-5 text-purple-600" />
+                製作方法
               </h3>
-              <ol className="space-y-2">
-                {cocktail.method.map((step, index) => (
-                  <li key={index} className="flex items-start gap-3 text-gray-700">
-                    <span className="flex-shrink-0 w-6 h-6 bg-primary-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                      {index + 1}
-                    </span>
-                    <span className="flex-1 pt-0.5">{step}</span>
-                  </li>
-                ))}
-              </ol>
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                {(() => {
+                  // 根據語言選擇使用哪個數據源
+                  const methodSections = langZh && cocktail.method_sections_zh?.length
+                    ? cocktail.method_sections_zh
+                    : cocktail.method_sections;
+
+                  if (!methodSections || methodSections.length === 0) {
+                    return <p className="text-gray-500 italic">無製作步驟資訊</p>;
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {methodSections.map((section: any, i: number) => {
+                        // 根據語言獲取標題和步驟
+                        const title = langZh
+                          ? (section.title_zh || section.title)
+                          : section.title;
+                        const steps = langZh
+                          ? (section.steps_zh || section.steps || [])
+                          : (section.steps || []);
+
+                        if (steps.length === 0) return null;
+
+                        return (
+                          <div key={i}>
+                            <h4 className="font-semibold text-primary-600 mb-2">
+                              {title}
+                            </h4>
+                            <ol className="list-decimal list-inside space-y-1">
+                              {steps.map((step: string, j: number) => (
+                                <li key={j} className="text-gray-700">
+                                  {step}
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           )}
 
-          {/* Garnish */}
-          {cocktail.garnish && cocktail.garnish.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                <Leaf className="w-5 h-5 text-green-600" />
-                裝飾
+          {/* 5. 營養與酒精資訊 */}
+          {(cocktail.nutrition?.calories || cocktail.alcohol_metrics && (
+            cocktail.alcohol_metrics.abv != null ||
+            cocktail.alcohol_metrics.standard_drinks != null ||
+            cocktail.alcohol_metrics.proof != null ||
+            cocktail.alcohol_metrics.pure_alcohol_grams != null
+           )) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {cocktail.nutrition?.calories && (
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-800 mb-2">營養資訊</h4>
+                  <div className="flex items-center justify-between">
+                    <span className="text-blue-700">卡路里</span>
+                    <span className="text-2xl font-bold text-blue-900">
+                      {cocktail.nutrition.calories} cal
+                    </span>
+                  </div>
+                </div>
+              )}
+              {cocktail.alcohol_metrics && (
+                cocktail.alcohol_metrics.abv != null ||
+                cocktail.alcohol_metrics.standard_drinks != null ||
+                cocktail.alcohol_metrics.proof != null ||
+                cocktail.alcohol_metrics.pure_alcohol_grams != null
+              ) && (
+                <div className="bg-orange-50 rounded-lg p-4">
+                  <h4 className="font-semibold text-orange-800 mb-2">酒精指標</h4>
+                  <div className="space-y-1 text-sm">
+                    {cocktail.alcohol_metrics.abv != null && (
+                      <div className="flex justify-between">
+                        <span className="text-orange-700">酒精濃度</span>
+                        <span className="font-semibold text-orange-900">
+                          {cocktail.alcohol_metrics.abv}%
+                        </span>
+                      </div>
+                    )}
+                    {cocktail.alcohol_metrics.standard_drinks != null && (
+                      <div className="flex justify-between">
+                        <span className="text-orange-700">標準飲酒量</span>
+                        <span className="font-semibold text-orange-900">
+                          {cocktail.alcohol_metrics.standard_drinks}
+                        </span>
+                      </div>
+                    )}
+                    {cocktail.alcohol_metrics.proof != null && (
+                      <div className="flex justify-between">
+                        <span className="text-orange-700">酒精度數</span>
+                        <span className="font-semibold text-orange-900">
+                          {cocktail.alcohol_metrics.proof} proof
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 6. 杯具資訊 */}
+          {cocktail.glass && (
+            <div className="bg-purple-50 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <GlassWater className="w-5 h-5 text-purple-600" />
+                <h4 className="font-semibold text-purple-800">建議杯具</h4>
+              </div>
+              <p className="text-purple-700">
+                {langZh && cocktail.glass_zh
+                  ? `${cocktail.glass_zh} (${cocktail.glass})`
+                  : cocktail.glass}
+              </p>
+            </div>
+          )}
+
+          {/* 7. 歷史故事 */}
+          {cocktail.history && cocktail.history.length > 0 && (
+            <div>
+              <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-amber-600" />
+                歷史與故事
               </h3>
-              <div className="flex flex-wrap gap-2">
-                {cocktail.garnish.map((item, index) => (
-                  <span key={index} className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">
-                    {item}
-                  </span>
+              <div className="bg-amber-50 rounded-lg p-4 space-y-2">
+                {(langZh && cocktail.history_zh?.length
+                  ? cocktail.history_zh
+                  : cocktail.history
+                ).map((paragraph, i) => (
+                  <p key={i} className="text-gray-700 leading-relaxed">
+                    {paragraph}
+                  </p>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Glass */}
-          {cocktail.glass && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <Wine className="w-5 h-5 text-gray-600" />
-                <span className="text-sm text-gray-600">使用杯具：</span>
-                <span className="font-semibold text-gray-900">{cocktail.glass}</span>
+          {/* 8. 專業評論 */}
+          {cocktail.review && cocktail.review.length > 0 && (
+            <div>
+              <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-indigo-600" />
+                專業評論
+              </h3>
+              <div className="bg-indigo-50 rounded-lg p-4 space-y-2">
+                {(langZh && cocktail.review_zh?.length
+                  ? cocktail.review_zh
+                  : cocktail.review
+                ).map((comment, i) => (
+                  <p key={i} className="text-gray-700 italic leading-relaxed">
+                    "{comment}"
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 9. 相關變化版本 */}
+          {cocktail.variants && cocktail.variants.length > 0 && (
+            <div>
+              <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                <LinkIcon className="w-5 h-5 text-cyan-600" />
+                相關變化版本
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {cocktail.variants.map((variant, i) => (
+                  <a
+                    key={i}
+                    href={variant.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-3 bg-cyan-50 hover:bg-cyan-100 rounded-lg transition-colors"
+                  >
+                    <Wine className="w-4 h-4 text-cyan-600" />
+                    <span className="text-cyan-800 font-medium">{variant.name}</span>
+                    <LinkIcon className="w-3 h-3 text-cyan-600 ml-auto" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 10. 過敏原警告 */}
+          {cocktail.allergens && cocktail.allergens.length > 0 && (
+            <div>
+              <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                過敏原警告
+              </h3>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <ul className="space-y-2">
+                  {cocktail.allergens.map((allergen, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <span className="font-semibold text-red-800">
+                          {langZh && allergen.item_zh
+                            ? `${allergen.item_zh} (${allergen.item})`
+                            : allergen.item}
+                        </span>
+                        <span className="text-red-700">
+                          {' - '}
+                          {langZh && allergen.allergen_zh
+                            ? allergen.allergen_zh
+                            : allergen.allergen}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           )}
 
           {/* Tags */}
           {cocktail.tags_categorized && (
-            <div className="mb-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">分類標籤</h3>
-              <div className="space-y-3">
-                {cocktail.tags_categorized.base_spirits && cocktail.tags_categorized.base_spirits.length > 0 && (
-                  <div>
-                    <div className="text-sm font-medium text-gray-600 mb-2">基酒</div>
-                    <div className="flex flex-wrap gap-2">
-                      {cocktail.tags_categorized.base_spirits.map((tag, index) => (
-                        <span key={index} className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {cocktail.tags_categorized.flavors && cocktail.tags_categorized.flavors.length > 0 && (
-                  <div>
-                    <div className="text-sm font-medium text-gray-600 mb-2">風味</div>
-                    <div className="flex flex-wrap gap-2">
-                      {cocktail.tags_categorized.flavors.map((tag, index) => (
-                        <span key={index} className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {cocktail.tags_categorized.styles && cocktail.tags_categorized.styles.length > 0 && (
-                  <div>
-                    <div className="text-sm font-medium text-gray-600 mb-2">風格</div>
-                    <div className="flex flex-wrap gap-2">
-                      {cocktail.tags_categorized.styles.map((tag, index) => (
-                        <span key={index} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+            <div className="pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Tags</h4>
+              <div className="flex flex-wrap gap-2">
+                {cocktail.tags_categorized.base_spirits?.map((tag) => (
+                  <TagBadge key={tag} tag={tag} dimension="base_spirits" showColoredIcons={true} />
+                ))}
+                {cocktail.tags_categorized.flavors?.map((tag) => (
+                  <TagBadge key={tag} tag={tag} dimension="flavors" showColoredIcons={true} />
+                ))}
+                {cocktail.tags_categorized.ingredients?.map((tag) => (
+                  <TagBadge key={tag} tag={tag} dimension="ingredients" showColoredIcons={true} />
+                ))}
+                {cocktail.tags_categorized.styles?.map((tag) => (
+                  <TagBadge key={tag} tag={tag} dimension="styles" showColoredIcons={true} />
+                ))}
               </div>
             </div>
           )}
 
-          {/* Source Link */}
+          {/* More Categories */}
+          {cocktail.more_categories && cocktail.more_categories.length > 0 && (
+            <div className="pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">More Categories</h4>
+              <div className="flex flex-wrap gap-2">
+                {(langZh && cocktail.more_categories_zh?.length
+                  ? cocktail.more_categories_zh
+                  : cocktail.more_categories
+                ).map((category, i) => (
+                  <CategoryBadge key={i} categoryName={category} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 來源連結 */}
           {cocktail.detail_url && (
-            <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="pt-4 border-t">
               <a
                 href={cocktail.detail_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
+                className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
               >
                 <LinkIcon className="w-4 h-4" />
-                查看原始來源
+                查看原始配方
               </a>
             </div>
           )}

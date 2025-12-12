@@ -10,7 +10,8 @@ from app.services.sentiment import analyze_sentiment, should_warn_about_drinking
 from app.services.langgraph_agent import (
     get_graph,
     extract_cocktails_data_from_result,
-    extract_cocktails_from_ai_message
+    extract_cocktails_from_ai_message,
+    extract_cocktails_with_llm
 )
 from app.services.conversation_manager import ConversationManager
 from bson.objectid import ObjectId
@@ -218,21 +219,26 @@ def send_message():
         if needs_warning and '責任飲酒' not in ai_response:
             ai_response += "\n\n💡 小提醒：請記得理性飲酒，過量飲酒有害健康。如果您要開車或有其他不適合飲酒的情況，我也可以推薦美味的無酒精飲料喔！"
 
-        # ============== 提取調酒資料（新增） ==============
+        # ============== 提取調酒資料（直接從工具結果提取） ==============
+        # 只有在 LLM 使用了工具（RAG/資料庫查詢）時才提取調酒
         cocktails = []
+        cocktails_data = []
 
-        # 優先使用 LLM 輸出提取調酒（更準確）
-        cocktails_data = extract_cocktails_from_ai_message(result, db)
-
-        # 如果 LLM 沒有明確提到調酒，回退到 RAG 結果
-        if not cocktails_data:
-            current_app.logger.info(f"[Chat] LLM 輸出中未找到調酒，使用 RAG 結果作為回退")
+        if tool_used:
+            # 直接從工具結果（ToolMessages）提取調酒資料（最可靠、最快速）
+            current_app.logger.info(f"[Chat] LLM 使用了工具，直接從工具結果提取調酒")
             cocktails_data = extract_cocktails_data_from_result(result)
-            extraction_method = "RAG"
-        else:
-            extraction_method = "LLM"
 
-        current_app.logger.info(f"[Chat] 使用 {extraction_method} 提取到 {len(cocktails_data)} 個調酒資料")
+            cocktail_names = [c.get('name') for c in cocktails_data]
+            current_app.logger.info(f"[Chat] 從工具結果提取到 {len(cocktails_data)} 個調酒: {cocktail_names}")
+        else:
+            # LLM 只是在聊天，沒有查詢新的調酒
+            current_app.logger.info(f"[Chat] LLM 未使用工具，跳過調酒卡片提取")
+
+            # 檢測潛在的幻覺：LLM 未使用工具但回應中包含調酒相關關鍵字
+            hallucination_keywords = ['推薦', '介紹', '材料', '毫升', 'ml', '調製', '搖盪', '杯中', '評分', '難度']
+            if any(keyword in ai_response for keyword in hallucination_keywords):
+                current_app.logger.warning(f"[Chat] ⚠️ 偵測到疑似幻覺推薦：LLM 未使用工具但回應包含調酒關鍵字")
 
         if cocktails_data:
             # 從 MongoDB 查詢調酒資料（精簡版本，只包含卡片需要的欄位）
