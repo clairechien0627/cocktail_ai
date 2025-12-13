@@ -563,7 +563,7 @@ const CocktailDetailModal = ({
   onRecord: () => void;
   renderStars: (rating?: number) => React.ReactNode;
   langZh: boolean;
-  setLangZh: (value: boolean) => void;
+  setLangZh: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
   return (
     <div
@@ -593,7 +593,14 @@ const CocktailDetailModal = ({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setLangZh((v) => !v)}
+              onClick={() => {
+                console.log('Language toggle clicked, current langZh:', langZh);
+                console.log('setLangZh function:', setLangZh);
+                setLangZh((v) => {
+                  console.log('Inside setLangZh updater, prev value:', v, 'new value:', !v);
+                  return !v;
+                });
+              }}
               className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-white bg-opacity-20 hover:bg-opacity-30 transition-colors"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-white" />

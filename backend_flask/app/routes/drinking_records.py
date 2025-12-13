@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import DrinkingRecord
 from bson.objectid import ObjectId
 from datetime import datetime
+from .cocktails import merge_cocktail_with_zh, enrich_with_trans_tables
 
 records_bp = Blueprint('records', __name__, url_prefix='/api/records')
 
@@ -275,6 +276,9 @@ def get_recommendations():
                 cocktail['created_at'] = cocktail['created_at'].isoformat()
             if 'scraped_at' in cocktail and hasattr(cocktail['scraped_at'], 'isoformat'):
                 cocktail['scraped_at'] = cocktail['scraped_at'].isoformat()
+
+        # 合併中文資料（與調酒瀏覽頁面保持一致）
+        recommendations = [enrich_with_trans_tables(db, merge_cocktail_with_zh(db, c)) for c in recommendations]
 
         return jsonify({
             'recommendations': recommendations,
