@@ -1,8 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from bson.objectid import ObjectId
 from werkzeug.security import generate_password_hash, check_password_hash
 import random
 from collections import Counter
+
+# 台灣時區 (UTC+8)
+TW_TIMEZONE = timezone(timedelta(hours=8))
 
 class User:
     """用戶模型"""
@@ -18,7 +21,7 @@ class User:
                 'favorite_spirits': [],
                 'skill_level': 'beginner'
             },
-            'created_at': datetime.utcnow()
+            'created_at': datetime.now(TW_TIMEZONE)
         }
         result = db.users.insert_one(user_data)
         return result.inserted_id
@@ -56,8 +59,8 @@ class Conversation:
         conversation_data = {
             'user_id': ObjectId(user_id),
             'messages': [],
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow()
+            'created_at': datetime.now(TW_TIMEZONE),
+            'updated_at': datetime.now(TW_TIMEZONE)
         }
         result = db.conversations.insert_one(conversation_data)
         return result.inserted_id
@@ -69,7 +72,7 @@ class Conversation:
             'role': role,  # 'user' 或 'assistant'
             'content': content,
             'sentiment': sentiment,
-            'timestamp': datetime.utcnow()
+            'timestamp': datetime.now(TW_TIMEZONE)
         }
 
         # 新增：如果有調酒推薦資料，則加入訊息中
@@ -80,7 +83,7 @@ class Conversation:
             {'_id': ObjectId(conversation_id)},
             {
                 '$push': {'messages': message},
-                '$set': {'updated_at': datetime.utcnow()}
+                '$set': {'updated_at': datetime.now(TW_TIMEZONE)}
             }
         )
         return message
@@ -198,7 +201,7 @@ class Cocktail:
 
             # 元數據
             'scraped_at': data.get('scraped_at'),
-            'created_at': datetime.utcnow(),
+            'created_at': datetime.now(TW_TIMEZONE),
         }
 
         result = db.cocktails.insert_one(cocktail_data)
@@ -418,11 +421,11 @@ class DrinkingRecord:
             'cocktail_snapshot': cocktail_snapshot,
             'preference': data.get('preference', 'neutral'),  # loved, liked, neutral, disliked
             'notes': data.get('notes', ''),
-            'drunk_at': data.get('drunk_at', datetime.utcnow()),
+            'drunk_at': data.get('drunk_at', datetime.now(TW_TIMEZONE)),
             'location': data.get('location'),
             'mood_tags': data.get('mood_tags', []),
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow()
+            'created_at': datetime.now(TW_TIMEZONE),
+            'updated_at': datetime.now(TW_TIMEZONE)
         }
 
         result = db.drinking_records.insert_one(record_data)
@@ -491,7 +494,7 @@ class DrinkingRecord:
         if not record:
             raise ValueError("Record not found or unauthorized")
 
-        update_data = {'updated_at': datetime.utcnow()}
+        update_data = {'updated_at': datetime.now(TW_TIMEZONE)}
 
         # 允許更新的欄位
         allowed_fields = ['preference', 'notes', 'drunk_at', 'location', 'mood_tags']
@@ -662,7 +665,7 @@ class DrinkingRecord:
                     'time_distribution': [
                         {
                             '$addFields': {
-                                'hour': {'$hour': '$drunk_at'}
+                                'hour': {'$hour': {'date': '$drunk_at', 'timezone': '+08:00'}}
                             }
                         },
                         {
@@ -1189,7 +1192,7 @@ class Favorite:
                 'user_id': ObjectId(user_id),
                 'cocktail_id': ObjectId(cocktail_id),
                 'conversation_id': ObjectId(conversation_id) if conversation_id else None,
-                'created_at': datetime.utcnow()
+                'created_at': datetime.now(TW_TIMEZONE)
             }
             result = db.favorites.insert_one(favorite_data)
             return result.inserted_id

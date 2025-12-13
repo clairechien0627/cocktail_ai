@@ -60,8 +60,8 @@ const DrinkingRecordsPage = () => {
       const params: any = { page, limit: 12 };
 
       if (filterPreference) params.preference = filterPreference;
-      if (filterStartDate) params.start_date = new Date(filterStartDate).toISOString();
-      if (filterEndDate) params.end_date = new Date(filterEndDate).toISOString();
+      if (filterStartDate) params.start_date = filterStartDate; // 直接使用日期字串，不轉換
+      if (filterEndDate) params.end_date = filterEndDate; // 直接使用日期字串，不轉換
       if (filterMoodTags.length > 0) params.mood_tags = filterMoodTags.join(',');
 
       const response = await recordsAPI.getAll(params);
@@ -104,7 +104,9 @@ const DrinkingRecordsPage = () => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // 移除時區資訊（Z 或 +08:00），將字串視為本地時間
+    const cleanDateStr = dateString.replace('Z', '').replace('+08:00', '');
+    const date = new Date(cleanDateStr);
     return new Intl.DateTimeFormat('zh-TW', {
       year: 'numeric',
       month: 'long',

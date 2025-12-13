@@ -40,12 +40,24 @@ const RecordForm: React.FC<RecordFormProps> = ({ cocktail, existingRecord, onClo
     if (existingRecord) {
       setPreference(existingRecord.preference);
       setNotes(existingRecord.notes);
-      setDrunkAt(existingRecord.drunk_at ? new Date(existingRecord.drunk_at).toISOString().slice(0, 16) : '');
+      // 直接使用後端傳回的時間字串（已經是台灣時間），移除時區資訊
+      if (existingRecord.drunk_at) {
+        const timeStr = existingRecord.drunk_at.replace('Z', '').replace('+08:00', '').slice(0, 16);
+        setDrunkAt(timeStr);
+      } else {
+        setDrunkAt('');
+      }
       setLocation(existingRecord.location || '');
       setSelectedMoodTags(existingRecord.mood_tags || []);
     } else {
-      // 新建模式，設定預設時間為現在
-      setDrunkAt(new Date().toISOString().slice(0, 16));
+      // 新建模式，設定預設時間為現在（本地時間）
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      setDrunkAt(`${year}-${month}-${day}T${hours}:${minutes}`);
     }
   }, [existingRecord]);
 
@@ -58,7 +70,7 @@ const RecordForm: React.FC<RecordFormProps> = ({ cocktail, existingRecord, onClo
       const recordData = {
         preference,
         notes,
-        drunk_at: new Date(drunkAt).toISOString(),
+        drunk_at: drunkAt, // 直接使用本地時間字串，不轉換為 ISO
         location: location || undefined,
         mood_tags: selectedMoodTags,
       };

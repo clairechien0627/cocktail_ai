@@ -2,8 +2,11 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import DrinkingRecord
 from bson.objectid import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from .cocktails import merge_cocktail_with_zh, enrich_with_trans_tables
+
+# 台灣時區 (UTC+8)
+TW_TIMEZONE = timezone(timedelta(hours=8))
 
 records_bp = Blueprint('records', __name__, url_prefix='/api/records')
 
@@ -21,12 +24,15 @@ def create_record():
         if 'cocktail_id' not in data:
             return jsonify({'error': '缺少 cocktail_id'}), 400
 
-        # 處理時間欄位
+        # 處理時間欄位（前端傳來的是台灣本地時間字串）
         if 'drunk_at' in data and isinstance(data['drunk_at'], str):
             try:
-                data['drunk_at'] = datetime.fromisoformat(data['drunk_at'].replace('Z', '+00:00'))
+                # 移除 'Z' 或時區資訊，解析為 naive datetime，然後加上台灣時區
+                time_str = data['drunk_at'].replace('Z', '').replace('+00:00', '').replace('+08:00', '')
+                naive_dt = datetime.fromisoformat(time_str)
+                data['drunk_at'] = naive_dt.replace(tzinfo=TW_TIMEZONE)
             except:
-                data['drunk_at'] = datetime.utcnow()
+                data['drunk_at'] = datetime.now(TW_TIMEZONE)
 
         # 建立紀錄
         record_id = DrinkingRecord.create(db, user_id, data['cocktail_id'], data)
@@ -62,17 +68,17 @@ def get_records():
 
         if 'start_date' in request.args:
             try:
-                filters['start_date'] = datetime.fromisoformat(
-                    request.args.get('start_date').replace('Z', '+00:00')
-                )
+                time_str = request.args.get('start_date').replace('Z', '').replace('+00:00', '').replace('+08:00', '')
+                naive_dt = datetime.fromisoformat(time_str)
+                filters['start_date'] = naive_dt.replace(tzinfo=TW_TIMEZONE)
             except:
                 pass
 
         if 'end_date' in request.args:
             try:
-                filters['end_date'] = datetime.fromisoformat(
-                    request.args.get('end_date').replace('Z', '+00:00')
-                )
+                time_str = request.args.get('end_date').replace('Z', '').replace('+00:00', '').replace('+08:00', '')
+                naive_dt = datetime.fromisoformat(time_str)
+                filters['end_date'] = naive_dt.replace(tzinfo=TW_TIMEZONE)
             except:
                 pass
 
@@ -155,10 +161,13 @@ def update_record(record_id):
         data = request.get_json()
         db = current_app.config['DB']
 
-        # 處理時間欄位
+        # 處理時間欄位（前端傳來的是台灣本地時間字串）
         if 'drunk_at' in data and isinstance(data['drunk_at'], str):
             try:
-                data['drunk_at'] = datetime.fromisoformat(data['drunk_at'].replace('Z', '+00:00'))
+                # 移除 'Z' 或時區資訊，解析為 naive datetime，然後加上台灣時區
+                time_str = data['drunk_at'].replace('Z', '').replace('+00:00', '').replace('+08:00', '')
+                naive_dt = datetime.fromisoformat(time_str)
+                data['drunk_at'] = naive_dt.replace(tzinfo=TW_TIMEZONE)
             except:
                 pass
 
