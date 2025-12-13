@@ -24,6 +24,7 @@ FILE_TO_COLLECTION = {
     "allergens_item_translated.json": "allergens_item_trans",
     "more_categories_translated.json": "more_categories_trans",
     "category_translated.json": "categories_trans",
+    "tags_translated.json": "tags_trans",
 }
 
 def import_simple_trans_table(json_path: Path, collection_name: str):

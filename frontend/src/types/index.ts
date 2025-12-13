@@ -96,6 +96,7 @@ export interface Cocktail {
   more_categories_zh?: string[];
   glass_zh?: string;
   category_zh?:string;
+  tags_categorized_zh?: TagsCategorized;  // tags 的中文翻譯
 
   // 元數據
   scraped_at?: string;

@@ -101,12 +101,22 @@ export const getCategoryIcon = (categoryName: string): {
 
 /**
  * 渲染帶圖標的分類標籤
- * @param categoryName - 分類名稱
+ * @param categoryName - 顯示的分類名稱（可能是中文或英文）
+ * @param categoryNameEn - 用於獲取圖標的英文名稱（可選，預設使用 categoryName）
  * @param className - 額外的 CSS 類別
  * @returns JSX 元素
  */
-export const CategoryBadge = ({ categoryName, className = '' }: { categoryName: string; className?: string }) => {
-  const { icon: Icon, color } = getCategoryIcon(categoryName);
+export const CategoryBadge = ({
+  categoryName,
+  categoryNameEn,
+  className = ''
+}: {
+  categoryName: string;
+  categoryNameEn?: string;
+  className?: string;
+}) => {
+  // 使用英文名稱獲取圖標，如果沒有提供則使用 categoryName
+  const { icon: Icon, color } = getCategoryIcon(categoryNameEn || categoryName);
 
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-full text-sm transition-colors ${className}`}>

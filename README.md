@@ -208,10 +208,10 @@ copy .env.example .env
 > https://drive.google.com/file/d/1BtOo_I3SJBxPb3CL7r3219cQ8Hs21wWi/view?usp=sharing
 
 請將含中文翻譯資料放在`data/diffordsguide_trans/` 目錄下
-> https://drive.google.com/file/d/18yI-BZJb8UubBKvj7bBCKpI8TkhpS-Bt/view?usp=sharing
+> https://drive.google.com/file/d/1Igv9_FXqcH2RJrXPro9Eu_xyU19-VGQL/view?usp=sharing
 
 請將中英對照表放在`data/trans_table/` 目錄下
-> https://drive.google.com/file/d/1_kiZJ5dOQ5eT0YAi9C38kHA8xnYUTEK6/view?usp=sharing
+> https://drive.google.com/file/d/1JMI5h3AmKuMqdfXYNLcs2mkqp4ZG-q3L/view?usp=sharing
 
 
 ```bash

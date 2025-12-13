@@ -29,6 +29,7 @@ export_visualizations.py
 crawl_filter_options.py
 analyze_filter_coverage.py
 extract_names_to_csv.py
+update_cocktail_names.py
 diffords_filter_report.md
 filter_analysis_and_recommendations.md
 IMPLEMENTATION_SUMMARY.md

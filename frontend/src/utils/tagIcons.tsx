@@ -209,6 +209,8 @@ interface TagProps {
   onClick?: () => void;
   selected?: boolean;
   showColoredIcons?: boolean; // 詳細頁使用彩色圖標
+  langZh?: boolean; // 是否顯示中文
+  tagZh?: string; // 中文翻譯
 }
 
 /**
@@ -224,10 +226,13 @@ const getDimensionIconColor = (dimension: 'base_spirits' | 'flavors' | 'ingredie
   return colorMap[dimension];
 };
 
-export const TagBadge: React.FC<TagProps> = ({ tag, dimension, onClick, selected = false, showColoredIcons = false }) => {
+export const TagBadge: React.FC<TagProps> = ({ tag, dimension, onClick, selected = false, showColoredIcons = false, langZh = false, tagZh }) => {
   const Icon = getIcon(tag, dimension);
   const selectedClass = selected ? 'ring-2 ring-offset-1 ring-blue-500' : '';
   const iconColor = showColoredIcons ? getDimensionIconColor(dimension) : 'text-gray-600';
+
+  // 根據語言狀態決定顯示的文字
+  const displayText = langZh && tagZh ? tagZh : tag.replace(/-/g, ' ');
 
   return (
     <span
@@ -239,7 +244,7 @@ export const TagBadge: React.FC<TagProps> = ({ tag, dimension, onClick, selected
       `}
     >
       <Icon className={`w-4 h-4 ${iconColor}`} />
-      <span className="text-gray-700 capitalize">{tag.replace(/-/g, ' ')}</span>
+      <span className="text-gray-700 capitalize">{displayText}</span>
     </span>
   );
 };

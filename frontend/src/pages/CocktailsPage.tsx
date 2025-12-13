@@ -1103,17 +1103,45 @@ const CocktailsPage = () => {
                 <div className="pt-4 border-t border-gray-200">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">Tags</h4>
                   <div className="flex flex-wrap gap-2">
-                    {selectedCocktail.tags_categorized.base_spirits?.map((tag) => (
-                      <TagBadge key={tag} tag={tag} dimension="base_spirits" showColoredIcons={true} />
+                    {selectedCocktail.tags_categorized.base_spirits?.map((tag, idx) => (
+                      <TagBadge
+                        key={tag}
+                        tag={tag}
+                        dimension="base_spirits"
+                        showColoredIcons={true}
+                        langZh={langZh}
+                        tagZh={selectedCocktail.tags_categorized_zh?.base_spirits?.[idx]}
+                      />
                     ))}
-                    {selectedCocktail.tags_categorized.flavors?.map((tag) => (
-                      <TagBadge key={tag} tag={tag} dimension="flavors" showColoredIcons={true} />
+                    {selectedCocktail.tags_categorized.flavors?.map((tag, idx) => (
+                      <TagBadge
+                        key={tag}
+                        tag={tag}
+                        dimension="flavors"
+                        showColoredIcons={true}
+                        langZh={langZh}
+                        tagZh={selectedCocktail.tags_categorized_zh?.flavors?.[idx]}
+                      />
                     ))}
-                    {selectedCocktail.tags_categorized.ingredients?.map((tag) => (
-                      <TagBadge key={tag} tag={tag} dimension="ingredients" showColoredIcons={true} />
+                    {selectedCocktail.tags_categorized.ingredients?.map((tag, idx) => (
+                      <TagBadge
+                        key={tag}
+                        tag={tag}
+                        dimension="ingredients"
+                        showColoredIcons={true}
+                        langZh={langZh}
+                        tagZh={selectedCocktail.tags_categorized_zh?.ingredients?.[idx]}
+                      />
                     ))}
-                    {selectedCocktail.tags_categorized.styles?.map((tag) => (
-                      <TagBadge key={tag} tag={tag} dimension="styles" showColoredIcons={true} />
+                    {selectedCocktail.tags_categorized.styles?.map((tag, idx) => (
+                      <TagBadge
+                        key={tag}
+                        tag={tag}
+                        dimension="styles"
+                        showColoredIcons={true}
+                        langZh={langZh}
+                        tagZh={selectedCocktail.tags_categorized_zh?.styles?.[idx]}
+                      />
                     ))}
                   </div>
                 </div>
@@ -1124,12 +1152,19 @@ const CocktailsPage = () => {
                 <div className="pt-4 border-t border-gray-200">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">More Categories</h4>
                   <div className="flex flex-wrap gap-2">
-                    {(langZh && selectedCocktail.more_categories_zh?.length
-                      ? selectedCocktail.more_categories_zh
-                      : selectedCocktail.more_categories
-                    ).map((category, i) => (
-                      <CategoryBadge key={i} categoryName={category} />
-                    ))}
+                    {selectedCocktail.more_categories.map((categoryEn, i) => {
+                      const categoryDisplay = langZh && selectedCocktail.more_categories_zh?.[i]
+                        ? selectedCocktail.more_categories_zh[i]
+                        : categoryEn;
+
+                      return (
+                        <CategoryBadge
+                          key={i}
+                          categoryName={categoryDisplay}
+                          categoryNameEn={categoryEn}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               )}

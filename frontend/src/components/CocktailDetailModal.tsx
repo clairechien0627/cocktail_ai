@@ -581,17 +581,45 @@ export function CocktailDetailModal({
             <div className="pt-4 border-t border-gray-200">
               <h4 className="text-sm font-semibold text-gray-700 mb-3">Tags</h4>
               <div className="flex flex-wrap gap-2">
-                {cocktail.tags_categorized.base_spirits?.map((tag) => (
-                  <TagBadge key={tag} tag={tag} dimension="base_spirits" showColoredIcons={true} />
+                {cocktail.tags_categorized.base_spirits?.map((tag, idx) => (
+                  <TagBadge
+                    key={tag}
+                    tag={tag}
+                    dimension="base_spirits"
+                    showColoredIcons={true}
+                    langZh={langZh}
+                    tagZh={cocktail.tags_categorized_zh?.base_spirits?.[idx]}
+                  />
                 ))}
-                {cocktail.tags_categorized.flavors?.map((tag) => (
-                  <TagBadge key={tag} tag={tag} dimension="flavors" showColoredIcons={true} />
+                {cocktail.tags_categorized.flavors?.map((tag, idx) => (
+                  <TagBadge
+                    key={tag}
+                    tag={tag}
+                    dimension="flavors"
+                    showColoredIcons={true}
+                    langZh={langZh}
+                    tagZh={cocktail.tags_categorized_zh?.flavors?.[idx]}
+                  />
                 ))}
-                {cocktail.tags_categorized.ingredients?.map((tag) => (
-                  <TagBadge key={tag} tag={tag} dimension="ingredients" showColoredIcons={true} />
+                {cocktail.tags_categorized.ingredients?.map((tag, idx) => (
+                  <TagBadge
+                    key={tag}
+                    tag={tag}
+                    dimension="ingredients"
+                    showColoredIcons={true}
+                    langZh={langZh}
+                    tagZh={cocktail.tags_categorized_zh?.ingredients?.[idx]}
+                  />
                 ))}
-                {cocktail.tags_categorized.styles?.map((tag) => (
-                  <TagBadge key={tag} tag={tag} dimension="styles" showColoredIcons={true} />
+                {cocktail.tags_categorized.styles?.map((tag, idx) => (
+                  <TagBadge
+                    key={tag}
+                    tag={tag}
+                    dimension="styles"
+                    showColoredIcons={true}
+                    langZh={langZh}
+                    tagZh={cocktail.tags_categorized_zh?.styles?.[idx]}
+                  />
                 ))}
               </div>
             </div>
@@ -602,12 +630,19 @@ export function CocktailDetailModal({
             <div className="pt-4 border-t border-gray-200">
               <h4 className="text-sm font-semibold text-gray-700 mb-3">More Categories</h4>
               <div className="flex flex-wrap gap-2">
-                {(langZh && cocktail.more_categories_zh?.length
-                  ? cocktail.more_categories_zh
-                  : cocktail.more_categories
-                ).map((category, i) => (
-                  <CategoryBadge key={i} categoryName={category} />
-                ))}
+                {cocktail.more_categories.map((categoryEn, i) => {
+                  const categoryDisplay = langZh && cocktail.more_categories_zh?.[i]
+                    ? cocktail.more_categories_zh[i]
+                    : categoryEn;
+
+                  return (
+                    <CategoryBadge
+                      key={i}
+                      categoryName={categoryDisplay}
+                      categoryNameEn={categoryEn}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}

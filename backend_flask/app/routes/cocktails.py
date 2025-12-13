@@ -132,6 +132,21 @@ def enrich_with_trans_tables(db, cocktail):
         if tr and tr.get("name_zh"):
             c["category_zh"] = tr["name_zh"]
 
+    # 5) tags_categorized -> tags_categorized_zh
+    if c.get("tags_categorized"):
+        tags_zh = {}
+        for dimension, tags_list in c["tags_categorized"].items():
+            if not isinstance(tags_list, list):
+                continue
+
+            zh_tags = []
+            for tag_en in tags_list:
+                tr = db.tags_trans.find_one({"name_en": tag_en})
+                zh_tags.append(tr.get("name_zh") if tr and tr.get("name_zh") else tag_en)
+
+            tags_zh[dimension] = zh_tags
+
+        c["tags_categorized_zh"] = tags_zh
 
     return c
 
