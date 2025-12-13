@@ -609,12 +609,14 @@ class DrinkingRecord:
         """分析用戶的口味偏好
 
         Returns:
-            - favorite_tags: 最愛的 base_spirits, flavors, styles
-            - taste_range: 口味偏好範圍（甜度、酒精強度）
-            - time_distribution: 飲用時段分佈
-            - mood_distribution: 心情/場合分佈
+            - favorite_tags: 最愛的 base_spirits, flavors, styles（基於喜歡的調酒）
+            - taste_range: 口味偏好範圍（甜度、酒精強度）（基於喜歡的調酒）
+            - time_distribution: 飲用時段分佈（所有紀錄）
+            - mood_distribution: 心情/場合分佈（所有紀錄）
+            - location_distribution: 地點分佈（所有紀錄）
         """
-        pipeline = [
+        # 第一部分：分析喜歡的調酒（用於推薦系統）
+        preference_pipeline = [
             {'$match': {
                 'user_id': ObjectId(user_id),
                 'preference': {'$in': ['loved', 'liked']}  # 只分析喜歡的調酒
@@ -646,7 +648,16 @@ class DrinkingRecord:
                                 'max_sweetness': {'$max': '$sweetness'}
                             }
                         }
-                    ],
+                    ]
+                }
+            }
+        ]
+
+        # 第二部分：分析所有紀錄的行為模式（不限制 preference）
+        behavior_pipeline = [
+            {'$match': {'user_id': ObjectId(user_id)}},  # 只限制 user_id，不限制 preference
+            {
+                '$facet': {
                     # 時段分佈
                     'time_distribution': [
                         {
@@ -711,7 +722,11 @@ class DrinkingRecord:
                     ],
                     # 心情標籤分佈
                     'mood_distribution': [
-                        {'$unwind': '$mood_tags'},
+                        {'$unwind': {
+                            'path': '$mood_tags',
+                            'preserveNullAndEmptyArrays': True  # 保留空陣列的紀錄
+                        }},
+                        {'$match': {'mood_tags': {'$ne': None}}},  # 排除解開後的 null
                         {
                             '$group': {
                                 '_id': '$mood_tags',
@@ -720,6 +735,7 @@ class DrinkingRecord:
                         },
                         {'$sort': {'count': -1}}
                     ],
+                    # 地點分佈
                     'location_distribution': [
                         {
                             '$group': {
@@ -733,46 +749,45 @@ class DrinkingRecord:
             }
         ]
 
-        result = list(db.drinking_records.aggregate(pipeline))
-        if not result or not result[0]['tags_analysis']:
-            return {
-                'favorite_tags': {
-                    'base_spirits': [],
-                    'flavors': [],
-                    'styles': []
-                },
-                'taste_range': {
-                    'strength': {'min': 0, 'max': 10, 'avg': 5},
-                    'sweetness': {'min': 0, 'max': 10, 'avg': 5}
-                },
-                'time_distribution': [],
-                'mood_distribution': [],
-                'location_distribution': [] 
+        # 執行兩個獨立的查詢
+        pref_result = list(db.drinking_records.aggregate(preference_pipeline))
+        behavior_result = list(db.drinking_records.aggregate(behavior_pipeline))
+
+        # 處理偏好分析結果（基於喜歡的調酒）
+        if not pref_result or not pref_result[0].get('tags_analysis'):
+            # 沒有喜歡的調酒，返回預設值
+            favorite_tags = {
+                'base_spirits': [],
+                'flavors': [],
+                'styles': []
             }
+            taste_range = {
+                'strength': {'min': 0, 'max': 10, 'avg': 5},
+                'sweetness': {'min': 0, 'max': 10, 'avg': 5}
+            }
+        else:
+            pref_data = pref_result[0]
+            tags_data = pref_data['tags_analysis'][0] if pref_data['tags_analysis'] else {}
 
-        data = result[0]
-        tags_data = data['tags_analysis'][0] if data['tags_analysis'] else {}
+            # 統計 tags 頻率
+            def count_tags(tags_array):
+                from collections import Counter
+                all_tags = []
+                for tags in tags_array:
+                    if tags:
+                        all_tags.extend(tags)
+                return Counter(all_tags).most_common(5)
 
-        # 統計 tags 頻率
-        def count_tags(tags_array):
-            from collections import Counter
-            all_tags = []
-            for tags in tags_array:
-                if tags:
-                    all_tags.extend(tags)
-            return Counter(all_tags).most_common(5)
+            favorite_base_spirits = count_tags(tags_data.get('all_base_spirits', []))
+            favorite_flavors = count_tags(tags_data.get('all_flavors', []))
+            favorite_styles = count_tags(tags_data.get('all_styles', []))
 
-        favorite_base_spirits = count_tags(tags_data.get('all_base_spirits', []))
-        favorite_flavors = count_tags(tags_data.get('all_flavors', []))
-        favorite_styles = count_tags(tags_data.get('all_styles', []))
-
-        return {
-            'favorite_tags': {
+            favorite_tags = {
                 'base_spirits': [{'tag': tag, 'count': count} for tag, count in favorite_base_spirits],
                 'flavors': [{'tag': tag, 'count': count} for tag, count in favorite_flavors],
                 'styles': [{'tag': tag, 'count': count} for tag, count in favorite_styles]
-            },
-            'taste_range': {
+            }
+            taste_range = {
                 'strength': {
                     'min': tags_data.get('min_strength', 0),
                     'max': tags_data.get('max_strength', 10),
@@ -783,10 +798,25 @@ class DrinkingRecord:
                     'max': tags_data.get('max_sweetness', 10),
                     'avg': tags_data.get('avg_sweetness', 5)
                 }
-            },
-            'time_distribution': data.get('time_distribution', []),
-            'mood_distribution': data.get('mood_distribution', []),
-            'location_distribution': data.get('location_distribution', [])
+            }
+
+        # 處理行為分析結果（所有紀錄）
+        if behavior_result and behavior_result[0]:
+            behavior_data = behavior_result[0]
+            time_distribution = behavior_data.get('time_distribution', [])
+            mood_distribution = behavior_data.get('mood_distribution', [])
+            location_distribution = behavior_data.get('location_distribution', [])
+        else:
+            time_distribution = []
+            mood_distribution = []
+            location_distribution = []
+
+        return {
+            'favorite_tags': favorite_tags,
+            'taste_range': taste_range,
+            'time_distribution': time_distribution,
+            'mood_distribution': mood_distribution,
+            'location_distribution': location_distribution
         }
 
     @staticmethod
