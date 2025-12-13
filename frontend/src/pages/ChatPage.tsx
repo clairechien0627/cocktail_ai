@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { chatAPI, cocktailAPI, favoritesAPI } from '../services/api';
+import { chatAPI, cocktailAPI, favoritesAPI, authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Send, Bot, User as UserIcon, AlertCircle, Menu, Plus, MessageCircle, X, Trash2, Wine, Sparkles, Heart } from 'lucide-react';
 import type { Message, Conversation, CocktailCardData, Cocktail, FavoriteItem } from '../types';
@@ -7,10 +7,11 @@ import { InteractiveCocktailCard } from '../components/InteractiveCocktailCard';
 import { RecordForm } from '../components/Record';
 import { CocktailDetailModal } from '../components/CocktailDetailModal';
 import { MarkdownMessage } from '../components/MarkdownMessage';
+import PersonalityQuickSelector from '../components/PersonalityQuickSelector';
 
 
 const ChatPage = () => {
-  const { user } = useAuth();  // 新增：獲取用戶資訊
+  const { user, updateUser } = useAuth();  // 新增：獲取用戶資訊和更新函數
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,6 +20,11 @@ const ChatPage = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);  // 預設關閉，給推薦區更多空間
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 性格選擇狀態
+  const [selectedPersonality, setSelectedPersonality] = useState<string>(
+    user?.preferences.personality || 'friendly'
+  );
 
   // 新增：推薦卡片相關狀態
   const [recommendedCocktails, setRecommendedCocktails] = useState<CocktailCardData[]>([]);
@@ -117,21 +123,52 @@ const ChatPage = () => {
   // 🗑️ 刪除對話功能（新增）
   const deleteConversation = async (convId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     if (!window.confirm('確定要刪除這個對話嗎？')) {
       return;
     }
-    
+
     try {
       await chatAPI.deleteConversation(convId);
       await loadConversations();
-      
+
       if (convId === conversationId) {
         startNewConversation();
       }
     } catch (error) {
       console.error('刪除對話失敗:', error);
       setError('刪除對話失敗');
+    }
+  };
+
+  // 性格切換處理函數
+  const handlePersonalityChange = async (newPersonality: string) => {
+    // 立即更新本地狀態
+    setSelectedPersonality(newPersonality);
+    console.log('[ChatPage] 切換性格至:', newPersonality);
+
+    // 自動保存到用戶偏好
+    try {
+      if (user) {
+        await authAPI.updatePreferences({
+          ...user.preferences,
+          personality: newPersonality,
+        });
+
+        // 更新本地用戶狀態
+        updateUser({
+          ...user,
+          preferences: {
+            ...user.preferences,
+            personality: newPersonality,
+          },
+        });
+
+        console.log('[ChatPage] 性格偏好已保存');
+      }
+    } catch (error) {
+      console.error('[ChatPage] 保存性格偏好失敗:', error);
+      // 不顯示錯誤，保持 UX 流暢
     }
   };
 
@@ -358,11 +395,11 @@ const ChatPage = () => {
 
 
     try {
-      // 呼叫 API（新增：傳遞用戶偏好的性格）
+      // 呼叫 API（使用當前選中的性格）
       const response = await chatAPI.sendMessage(
         userMessage,
         conversationId || undefined,
-        user?.preferences.personality || 'friendly'
+        selectedPersonality
       );
 
       // Debug 日誌
@@ -530,6 +567,15 @@ const ChatPage = () => {
                 AI 酒保
               </h1>
             </div>
+
+            {/* 中間 - 性格選擇器 (桌面版) */}
+            <div className="hidden md:block">
+              <PersonalityQuickSelector
+                value={selectedPersonality}
+                onChange={handlePersonalityChange}
+              />
+            </div>
+
             {/* 小視窗推薦/收藏按鈕 */}
             <button
               onClick={() => setShowMobileSidebar(!showMobileSidebar)}

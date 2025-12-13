@@ -49,8 +49,7 @@ def list_personalities():
                     'name': doc['name'],
                     'description': doc['description'],
                     'icon': doc.get('icon', '🍹'),
-                    'type': 'custom',
-                    'is_public': doc.get('is_public', False)
+                    'type': 'custom'
                 })
     except:
         # 未登入或 JWT 無效，只返回系統性格
@@ -162,7 +161,6 @@ def create_custom_personality():
             'example_responses': prompt.get('example_responses', []),
             'custom_rules': prompt.get('custom_rules', [])
         },
-        'is_public': data.get('is_public', False),
         'created_at': datetime.utcnow(),
         'updated_at': datetime.utcnow()
     }
@@ -224,9 +222,6 @@ def update_custom_personality(personality_id):
             'custom_rules': prompt.get('custom_rules', personality['prompt'].get('custom_rules', []))
         }
 
-    if 'is_public' in data:
-        update_data['is_public'] = data['is_public']
-
     # 更新資料庫
     db.personalities.update_one(
         {'_id': personality['_id']},
@@ -261,31 +256,3 @@ def delete_custom_personality(personality_id):
     return jsonify({'message': '性格刪除成功'}), 200
 
 
-@personalities_bp.route('/public', methods=['GET'])
-def list_public_personalities():
-    """
-    列出所有公開的自訂性格
-
-    Response:
-        公開性格列表
-    """
-    db = current_app.config['DB']
-
-    public_docs = db.personalities.find({
-        'type': 'custom',
-        'is_public': True
-    })
-
-    public_personalities = []
-    for doc in public_docs:
-        public_personalities.append({
-            'personality_id': doc['personality_id'],
-            'name': doc['name'],
-            'description': doc['description'],
-            'icon': doc.get('icon', '🍹'),
-            'type': 'custom',
-            'created_by': str(doc['user_id']),
-            'created_at': doc['created_at'].isoformat()
-        })
-
-    return jsonify(public_personalities), 200

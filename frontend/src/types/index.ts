@@ -7,9 +7,7 @@ export interface User {
 }
 
 export interface UserPreferences {
-  favorite_spirits: string[];
-  skill_level: 'beginner' | 'intermediate' | 'expert';
-  personality?: string;  // 酒保性格 ID（新增）
+  personality?: string;  // 酒保性格 ID
 }
 
 // 性格類型（新增）
@@ -19,7 +17,6 @@ export interface Personality {
   description: string;
   icon: string;
   type: 'system' | 'custom';
-  is_public?: boolean;
 }
 
 export interface PersonalitiesResponse {
