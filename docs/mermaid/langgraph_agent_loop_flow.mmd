@@ -1,0 +1,16 @@
+flowchart TD
+    G[Node 1: agent<br/>call_model]
+    H[AIMessage<br/>可能含 tool_calls]
+
+    I{should_continue?}
+
+    J[Node 2: tools]
+    K[ToolMessage<br/>JSON]
+
+    L[LLM 生成最終回應<br/>AIMessage]
+    M[END]
+
+    G --> H --> I
+
+    I -- 有 tool_calls --> J --> K --> G
+    I -- 無 tool_calls --> L --> M

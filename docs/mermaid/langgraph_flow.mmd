@@ -1,0 +1,38 @@
+flowchart TD
+    A["使用者訊息<br/>POST /api/chat/message"]
+
+    B["載入 / 建立對話<br/>ConversationManager<br/>MongoDB"]
+    C["保存用戶訊息<br/>save_message(user)"]
+    D["準備對話歷史<br/>Human / AI / Tool Messages"]
+    E["準備 LangGraph State<br/>BartenderState"]
+
+    F["執行 LangGraph<br/>graph.invoke(state)"]
+
+    G["Node 1: agent<br/>call_model<br/>LLM + Tools"]
+    H["LLM 回傳 AIMessage<br/>content / tool_calls"]
+
+    I{"should_continue?<br/>是否有 tool_calls<br/>是否超過次數"}
+
+    J["Node 2: tools<br/>執行工具"]
+    K["ToolMessage<br/>工具結果 JSON"]
+
+    L["LLM 生成最終回應<br/>AIMessage"]
+
+    M[END]
+
+    N["提取 AI 回應<br/>處理 Gemini / OpenAI 格式"]
+    O["提取工具結果<br/>ToolMessage.content"]
+    P["更新對話上下文<br/>recommended_cocktails<br/>last_recommendation"]
+    Q[責任飲酒警告檢查]
+    R["保存 AI 回應<br/>save_message(assistant)"]
+    S[回傳 JSON Response]
+
+    %% 主流程
+    A --> B --> C --> D --> E --> F --> G --> H --> I
+
+    %% 條件分支
+    I -- 有工具調用 --> J --> K --> G
+    I -- 無工具調用 --> M
+
+    %% 結束後處理
+    M --> N --> O --> P --> Q --> R --> S

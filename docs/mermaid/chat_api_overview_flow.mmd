@@ -1,0 +1,22 @@
+flowchart TD
+    A["使用者請求<br/>POST /api/chat/message"]
+
+    B["對話管理<br/>ConversationManager<br/>MongoDB"]
+    C["準備對話狀態<br/>BartenderState"]
+
+    D["LangGraph Agent<br/>LLM + Tool Routing"]
+
+    E["工具層<br/>Search / Filter / RAG"]
+    F["生成最終回應<br/>Natural Language Response"]
+
+    G["更新對話狀態<br/>推薦記錄 / 上下文"]
+    H["回傳 API Response"]
+
+    %% 主流程
+    A --> B --> C --> D
+
+    %% Agent-Tool Loop
+    D -- 需要資料 --> E --> D
+
+    %% 結束
+    D -- 生成回應 --> F --> G --> H
