@@ -622,7 +622,7 @@ class DrinkingRecord:
         preference_pipeline = [
             {'$match': {
                 'user_id': ObjectId(user_id),
-                'preference': {'$in': ['loved', 'liked']}  # 只分析喜歡的調酒
+                  # 只分析喜歡的調酒
             }},
             {
                 '$facet': {
