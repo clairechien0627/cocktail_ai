@@ -180,30 +180,36 @@ const PreferenceAnalysisPage = () => {
             })}
           </div>
         </div>
-        {/* 飲用地點分析 */}
-        {preferences.location_distribution && preferences.location_distribution.length > 0 && (
-            <div className="card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <MapPin className="w-6 h-6 text-primary-600" />
-              <h2 className="text-xl font-bold text-gray-900">飲用地點分析</h2>
-            </div>
+       {/* 飲用地點分析 */}
+{preferences.location_distribution && preferences.location_distribution.length > 0 && (
+  <div className="card p-6">
+    <div className="flex items-center gap-2 mb-4">
+      <MapPin className="w-6 h-6 text-primary-600" />
+      <h2 className="text-xl font-bold text-gray-900">飲用地點分析</h2>
+    </div>
 
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {preferences.location_distribution.map((loc) => (
-                <div
-                  key={loc._id}
-                  className="p-4 bg-gray-50 rounded-lg flex items-center justify-between"
-                >
-            <div>
-              <p className="text-sm text-gray-600">{loc._id || '未填寫地點'}</p>
-              <p className="text-2xl font-bold text-primary-600">{loc.count}</p>
-            </div>
+    <div className="flex flex-wrap gap-4">
+      {preferences.location_distribution.map((loc) => (
+        <div
+          key={loc._id}
+          className="
+            bg-gray-50 rounded-xl p-4
+            w-[110px]  /* 卡片更小更集中 */
+            flex flex-col items-center
+            shadow-sm hover:shadow-md transition-shadow
+          "
+        >
+          <p className="text-sm text-gray-600">{loc._id || '未填寫地點'}</p>
+          <p className="text-2xl font-bold text-primary-600 leading-tight">
+            {loc.count}
+          </p>
           <p className="text-xs text-gray-500">次</p>
         </div>
       ))}
     </div>
   </div>
 )}
+
 
 
         {/* 最愛的 Tags */}
