@@ -64,7 +64,7 @@ const CocktailsPage = () => {
     maxStrength: 10,
     minSweetness: 0,
     maxSweetness: 10,
-    maxCalories: 500,
+    maxCalories: 2100,
     difficulty: 'all' as 'all' | 'easy' | 'medium' | 'hard',
     sortBy: 'name' as 'name' | 'rating_desc' | 'rating_asc' | 'strength_desc' | 'calories_asc' | 'popular',
   });
@@ -148,7 +148,7 @@ const CocktailsPage = () => {
           if (filters.maxSweetness < 10) {
             params.append('max_sweetness', filters.maxSweetness.toString());
           }
-          if (filters.maxCalories < 500) {
+          if (filters.maxCalories < 2100) {
             params.append('max_calories', filters.maxCalories.toString());
           }
           if (filters.difficulty !== 'all') {
@@ -361,8 +361,8 @@ const CocktailsPage = () => {
                 <input
                   type="range"
                   min="0"
-                  max="500"
-                  step="10"
+                  max="2100"
+                  step="50"
                   value={filters.maxCalories}
                   onChange={(e) =>
                     setFilters({ ...filters, maxCalories: parseInt(e.target.value) })
